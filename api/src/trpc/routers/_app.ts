@@ -1,5 +1,5 @@
 import z from "zod";
-import { t } from "../index.js";
+import { t } from "../init.js";
 import { db } from "../../db/index.js";
 import { usersTable } from "../../db/schema.js";
 import { eq } from "drizzle-orm";

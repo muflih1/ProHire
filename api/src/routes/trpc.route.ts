@@ -1,6 +1,6 @@
 import { Router } from "express";
 import * as trpcExpress from "@trpc/server/adapters/express";
-import { appRouter } from "../trpc/routers/index.js";
+import { appRouter } from "../trpc/routers/_app.js";
 import { createContext } from "../trpc/context.js";
 
 const router: Router = Router()
