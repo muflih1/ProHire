@@ -3,6 +3,7 @@ import express from "express";
 import cors from "cors"
 import trpcRoutes from "./routes/trpc.route.js"
 import authRoutes from "./routes/auth.route.js"
+import organizationRoutes from "./routes/organization.route.js"
 import type { appRouter } from "./trpc/routers/_app.js";
 import { errorHandler } from "./middlewares/error-handler.middleware.js";
 import cookieParser from "cookie-parser";
@@ -21,6 +22,7 @@ app
   .use(deserializeSession);
 
 app.use('/api/auth', authRoutes)
+app.use('/api/organizations', organizationRoutes)
 app.use("/api/trpc", trpcRoutes);
 
 app.use(errorHandler)
@@ -29,5 +31,6 @@ const PORT = Number(getEnv('PORT', '5000'))
 app.listen(PORT, async () => {
   console.log(`Listening at http://localhost:${PORT}`);
 });
+
 
 export type AppRouter = typeof appRouter;

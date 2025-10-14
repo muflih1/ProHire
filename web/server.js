@@ -60,14 +60,7 @@ app.use('*all', async (req, res) => {
       render = (await import('./dist/server/entry-server.js')).render;
     }
 
-    const rendered = await render(url, req);
-
-    const html = template
-      .replace(`<!--app-head-->`, rendered.head ?? '')
-      .replace(`<!--app-html-->`, rendered.html ?? '')
-      .replace(`<!--preloaded-state-->`, rendered.preloadedState ?? '');
-
-    res.status(200).set({ 'Content-Type': 'text/html' }).send(html);
+    await render(url, req, res, template);
   } catch (e) {
     vite?.ssrFixStacktrace(e);
     console.log(e.stack);
@@ -75,7 +68,6 @@ app.use('*all', async (req, res) => {
   }
 });
 
-// Start http server
 app.listen(port, () => {
   console.log(`Listening at http://localhost:${port}`);
 });

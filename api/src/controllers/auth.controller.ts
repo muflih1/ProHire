@@ -6,7 +6,7 @@ import bcrypt from "bcryptjs";
 import { createSession, deleteSession, setSessionCookie } from "../lib/session.js";
 import { eq } from "drizzle-orm";
 
-export const createAccountHandler = catchAsync(async (req, res, next) => {
+export const createAccountHandler = catchAsync(async (req, res) => {
   const { displayName, email, password } = req.body
   const salt = await bcrypt.genSalt(12)
   const digest = await bcrypt.hash(password, salt)
@@ -15,7 +15,7 @@ export const createAccountHandler = catchAsync(async (req, res, next) => {
     if (!user) {
       throw new Error("Failed to create user")
     }
-    const [account] = await tx.insert(accountsTable).values({ accountId: user.id.toString(), userId: user.id, provider: "local", password: digest }).returning()
+    const [account] = await tx.insert(accountsTable).values({ accountID: user.id.toString(), userID: user.id, provider: "local", password: digest }).returning()
     if (!account) {
       throw new Error("Failed to create account")
     }
@@ -23,7 +23,7 @@ export const createAccountHandler = catchAsync(async (req, res, next) => {
     return { user, account, session }
   })
   setSessionCookie(res, result.session.token)
-  res.status(StatusCodes.CREATED).json(result)
+  res.status(StatusCodes.CREATED).json({ success: true })
 })
 
 export const loginHandler = catchAsync(async (req, res) => {
@@ -32,14 +32,14 @@ export const loginHandler = catchAsync(async (req, res) => {
   if (!user) {
     throw new Error('Account not found')
   }
-  const [account] = await db.select().from(accountsTable).where(eq(accountsTable.userId, user.id))
+  const [account] = await db.select().from(accountsTable).where(eq(accountsTable.userID, user.id))
   const match = await bcrypt.compare(password, account!.password!)
   if (!account || !match) {
     return res.status(StatusCodes.UNAUTHORIZED).json({ error: { message: 'Incorrect password' } })
   }
   const session = await createSession(user.id, req.get('user-agent'), req.ip)
   setSessionCookie(res, session.token)
-  res.status(StatusCodes.OK).json({ user, account, session })
+  res.status(StatusCodes.OK).json({ isLoggedIn: true })
 });
 
 export const logoutHandler = catchAsync(async (req, res) => {

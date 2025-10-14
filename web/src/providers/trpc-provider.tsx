@@ -10,6 +10,7 @@ import { TRPCProvider as TRPCProviderImpl } from '@/utils/trpc';
 import { createTRPCClient, httpBatchLink } from '@trpc/client';
 import type { AppRouter } from '../../../api/src';
 import { canUseDOM } from '@/utils/can-use-dom';
+import superjson from 'superjson';
 
 interface TRPCProviderProps {
   children: React.ReactNode;
@@ -55,6 +56,7 @@ export function TRPCProvider({ children, dehydratedState }: TRPCProviderProps) {
           url: getURL(),
           fetch: (url, options) =>
             fetch(url, { ...options, credentials: 'include', mode: 'cors' }),
+          transformer: superjson,
         }),
       ],
     })

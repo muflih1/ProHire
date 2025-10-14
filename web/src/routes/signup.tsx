@@ -18,30 +18,37 @@ import { Input } from '@/components/ui/input';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
+import axios from 'axios';
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Spinner } from '@/components/ui/spinner';
 import TextButton from '@/components/text-button';
-import { userLogin } from '@/services/api/auth.service';
-import { goForceFullPageRedirectTo } from '@/utils/go-force-full-page-redirect-to';
 
 const schema = z.object({
+  displayName: z.string().nonempty(),
   email: z.email().nonempty(),
   password: z.string().nonempty().min(6),
 });
 
 type FormData = z.infer<typeof schema>;
 
-export default function Login() {
+export default function Signup() {
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { email: '', password: '' },
+    defaultValues: {
+      displayName: '',
+      email: '',
+      password: '',
+    },
   });
 
   const mutation = useMutation({
-    mutationFn: userLogin,
+    mutationFn: async (data: FormData) => {
+      const res = await axios.post('/api/auth/register', data);
+      return res.data;
+    },
     onError: (err: any) => toast.error(err.response.data.error.message),
-    onSuccess: () => goForceFullPageRedirectTo('/', true),
+    onSuccess: () => (window.location.href = '/'),
   });
 
   const submit: SubmitHandler<FormData> = data => mutation.mutate(data);
@@ -50,7 +57,7 @@ export default function Login() {
     <div className='min-h-screen flex items-center justify-center w-full'>
       <Card className='w-96'>
         <CardHeader className='flex justify-center'>
-          <CardTitle className='text-3xl font-bold'>Log in</CardTitle>
+          <CardTitle className='text-3xl font-bold'>Create account</CardTitle>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -59,6 +66,19 @@ export default function Login() {
               noValidate
               className='space-y-4'
             >
+              <FormField
+                name='displayName'
+                control={form.control}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Name</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <FormField
                 name='email'
                 control={form.control}
@@ -91,16 +111,16 @@ export default function Login() {
                 disabled={mutation.isPending}
                 className='w-full'
               >
-                {mutation.isPending ? <Spinner /> : 'Log in'}
+                {mutation.isPending ? <Spinner /> : 'Sign up'}
               </Button>
             </form>
           </Form>
         </CardContent>
         <CardFooter className='flex justify-center'>
           <span className='text-sm max-w-full'>
-            Don&apos;t have an account?{' '}
-            <TextButton to={'/signup'} underlineOnHover color='blue'>
-              Sign up
+            Have an account?{' '}
+            <TextButton to={'/login'} underlineOnHover color='blue'>
+              Sign in
             </TextButton>
           </span>
         </CardFooter>

@@ -1,16 +1,35 @@
-type Envirorment = {
-  NODE_ENV: 'production' | 'development'
-  PORT: string
-  DATABASE_URL: string
-  SESSION_SECRET: string
-  HASHIDS_SALT: string
+import { z } from "zod"
+
+const schema = z.object({
+  NODE_ENV: z.enum(['production', 'development']).optional(),
+  PORT: z.string().optional(),
+  DATABASE_URL: z.url(),
+  SESSION_SECRET: z.string().nonempty(),
+  HASHIDS_SALT: z.string().nonempty()
+})
+
+export type Environment = z.infer<typeof schema>
+
+const parsedEnv = schema.safeParse(process.env)
+
+if (!parsedEnv.success) {
+  console.error('Invalid environment variables:', parsedEnv.error.format())
+  throw new Error('Invalid environment variables')
 }
 
-export function getEnv<Key extends keyof Envirorment>(key: Key, fallback?: Envirorment[Key]): Envirorment[Key] {
-  const value = process.env[key] as Envirorment[Key] | undefined
+export const env = parsedEnv.data
+
+export function getEnv<Key extends keyof Environment>(key: Key, fallback?: Environment[Key]): Environment[Key] {
+  const value = env[key]
   if (value === undefined) {
     if (fallback !== undefined) return fallback
-    throw new Error('Missing envirorment variable ' + key)
+    throw new Error('Missing environment variable ' + key)
   }
   return value
+}
+
+declare global {
+  namespace NodeJS {
+    interface ProcessEnv extends Environment { }
+  }
 }

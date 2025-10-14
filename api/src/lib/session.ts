@@ -25,14 +25,14 @@ function generateSecureRandomString(): string {
   return id;
 }
 
-export async function createSession(userId: bigint, userAgent?: string, ipAddress?: string, pool = db) {
+export async function createSession(userID: bigint, userAgent?: string, ipAddress?: string, pool = db) {
   const secret = generateSecureRandomString()
   const secretHash = hashSecret(secret)
 
   const [session] = await pool
     .insert(sessionsTable)
     .values({
-      userId,
+      userID,
       secret: secretHash,
       userAgent,
       ipAddress
@@ -79,7 +79,7 @@ export async function getSession(sessionId: NumberLike) {
   let [session] = await db
     .select({
       id: sessionsTable.id,
-      userId: usersTable.id,
+      userID: usersTable.id,
       secret: sessionsTable.secret,
       userAgent: sessionsTable.userAgent,
       ipAddress: sessionsTable.ipAddress,
@@ -88,7 +88,7 @@ export async function getSession(sessionId: NumberLike) {
       updatedAt: sessionsTable.updatedAt
     })
     .from(sessionsTable)
-    .innerJoin(usersTable, eq(usersTable.id, sessionsTable.userId))
+    .innerJoin(usersTable, eq(usersTable.id, sessionsTable.userID))
     .where(eq(sessionsTable.id, sessionId as bigint));
   if (!session) {
     return null

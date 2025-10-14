@@ -3,22 +3,41 @@ import { StrictMode, Suspense } from 'react';
 import { hydrateRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router';
 import { TRPCProvider } from './providers/trpc-provider';
-import { AuthContextProvider } from './providers/auth-provider';
+import { AuthProvider } from './providers/auth-provider';
 import App from './App';
 import { Toaster } from './components/ui/sonner';
+import { type DehydratedState } from '@tanstack/react-query';
+import superjson, { type SuperJSONResult } from 'superjson';
+
+const preloadedState =
+  window.__PRELOADED_STATE__ != null
+    ? superjson.deserialize(window.__PRELOADED_STATE__)
+    : undefined;
 
 hydrateRoot(
   document.getElementById('root')!,
   <StrictMode>
-    <TRPCProvider dehydratedState={(window as any).__PRELOADED_STATE__}>
+    <TRPCProvider
+      dehydratedState={preloadedState as DehydratedState | undefined}
+    >
       <BrowserRouter>
         <Suspense fallback='Loading...'>
-          <AuthContextProvider>
+          <AuthProvider>
             <App />
             <Toaster />
-          </AuthContextProvider>
+          </AuthProvider>
         </Suspense>
       </BrowserRouter>
     </TRPCProvider>
   </StrictMode>
 );
+
+declare global {
+  interface Window {
+    __PRELOADED_STATE__?: SuperJSONResult;
+  }
+}
+
+queueMicrotask(() => {
+  console.log('Hello, World!')
+})
