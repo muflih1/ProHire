@@ -153,7 +153,7 @@ export const jobListingsTable = pgTable('job_listings', {
   wageInterval: varchar('wage_interval', { length: 50 }),
   streetAddress: varchar('street_address', { length: 255 }),
   locationRequirement: varchar("location_requirement", { length: 50 }).notNull(),
-  experieceLevel: varchar("experience_level", { length: 50 }),
+  experienceLevel: varchar("experience_level", { length: 50 }),
   openings: integer().notNull(),
   status: varchar({ length: 50 }).default("DRAFT"),
   type: varchar({ length: 50 }),

@@ -20,7 +20,7 @@ import {
 } from './ui/select';
 import { Textarea } from './ui/textarea';
 import { Spinner } from './ui/spinner';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTRPC } from '@/utils/trpc';
 import { useActiveOrganization } from '@/providers/active-organization-provider';
 import { useNavigate } from 'react-router';
@@ -71,10 +71,10 @@ const experienceLevels = [
   { value: 'SENIOR', label: 'Senior' },
 ];
 
-export default function JobListingForm() {
+export default function JobListingForm({ jobListing }: { jobListing?: any }) {
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: {
+    defaultValues: jobListing ?? {
       title: '',
       description: '',
       streetAddress: '',
@@ -89,9 +89,17 @@ export default function JobListingForm() {
   const navigate = useNavigate();
   const organization = useActiveOrganization();
   const trpc = useTRPC();
+  const queryClient = useQueryClient();
+  const action =
+    jobListing != null ? trpc.updateJobListing : trpc.createJobListing;
   const mutation = useMutation(
-    trpc.createJobListing.mutationOptions({
+    action.mutationOptions({
       onSuccess: jobListing => {
+        if (jobListing != null) {
+          queryClient.invalidateQueries({
+            queryKey: trpc.getJobListingByID.pathKey(),
+          });
+        }
         navigate(`/employer/job-listings/${jobListing.id.toString()}`);
       },
       onError: err => {
@@ -101,7 +109,13 @@ export default function JobListingForm() {
   );
 
   function submit(data: FormData) {
-    mutation.mutate({ ...data, organizationID: organization.id.toString() });
+    mutation.mutate({
+      ...data,
+      organizationID: organization.id.toString(),
+      ...((jobListing != null
+        ? { jobListingID: jobListing.id.toString() }
+        : undefined) as any),
+    });
   }
 
   return (
@@ -312,3 +326,16 @@ export default function JobListingForm() {
     </>
   );
 }
+
+// {
+//     title: string;
+//     description: string;
+//     wage: number;
+//     wageInterval: string | null;
+//     streetAddress: string | null;
+//     locationRequirement: string;
+//     experienceLevel: string | null;
+//     openings: number;
+//     status: string | null;
+//     type: string | null;
+//   }

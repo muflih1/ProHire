@@ -1,4 +1,4 @@
-import { Route, Routes } from 'react-router';
+import { Outlet, Route, Routes } from 'react-router';
 import ProtectedRoute from './protected-route';
 import { lazy, Suspense } from 'react';
 
@@ -8,6 +8,8 @@ const Signup = lazy(() => import('@/routes/signup'));
 const EmployerRootLayout = lazy(() => import('./employer-root-layout'));
 const Employer = lazy(() => import('@/routes/employer'));
 const Posting = lazy(() => import('@/routes/employer/posting'));
+const JobListing = lazy(() => import('@/routes/employer/job-listings'));
+const JobListingEditing = lazy(() => import('@/routes/employer/editing'));
 
 export default function MainRoutes() {
   return (
@@ -18,6 +20,10 @@ export default function MainRoutes() {
           <Route path='/employer' element={<EmployerRootLayout />}>
             <Route index element={<Employer />} />
             <Route path='posting' element={<Posting />} />
+            <Route path='job-listings/:jobListingID' element={<Outlet />}>
+              <Route index element={<JobListing />} />
+              <Route path='editing' element={<JobListingEditing />} />
+            </Route>
           </Route>
         </Route>
         <Route element={<ProtectedRoute requireAuth={false} redirectURL='/' />}>

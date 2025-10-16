@@ -32,5 +32,4 @@ app.listen(PORT, async () => {
   console.log(`Listening at http://localhost:${PORT}`);
 });
 
-
 export type AppRouter = typeof appRouter;

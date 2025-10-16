@@ -24,9 +24,9 @@ type Props = {
 export function ActiveOrganizationProvider(props: Props) {
   return (
     <Suspense fallback='Loading...'>
-      <ErrorBoundary fallback='Failed to fetch active organization.'>
+      {/* <ErrorBoundary fallback='Failed to fetch active organization.'>
+      </ErrorBoundary> */}
         <ActiveOrganizationProviderImpl {...props} />
-      </ErrorBoundary>
     </Suspense>
   );
 }
