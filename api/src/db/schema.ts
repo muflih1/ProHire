@@ -67,7 +67,7 @@ export const usersTable = pgTable("users", {
   id: bigint({ mode: 'bigint' }).primaryKey().$default(() => snowflake.nextId()),
   displayName: varchar("display_name", { length: 50 }).notNull(),
   email: varchar({ length: 255 }).notNull().unique(),
-  image: varchar({ length: 255 }),
+  imageURL: varchar('image_url', { length: 255 }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date())
 })
