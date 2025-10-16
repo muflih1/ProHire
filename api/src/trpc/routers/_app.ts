@@ -203,7 +203,7 @@ export const appRouter = t.router({
         jobListingID: z.string().nonempty()
       })
       .refine(
-        data => data.locationRequirement === 'REMOTE' && data.streetAddress != null,
+        data => data.locationRequirement === 'REMOTE' || data.streetAddress != null,
         {
           error: 'Street address required for non-remote listing',
           path: ['streetAddress'],
@@ -256,5 +256,15 @@ export const appRouter = t.router({
         .returning()
 
       return jobListing
+    }),
+
+  deleteJobListing: t.procedure
+    .input(z.object({ jobListingID: z.string().nonempty(), organizationID: z.string().nonempty() }))
+    .use(hasPermission(PERMISSIONS.ORG_JOB_LISTING_DELETE, "You don't have permission to delete this job listing"))
+    .mutation(async ({ input }) => {
+      await db
+        .delete(jobListingsTable)
+        .where(eq(jobListingsTable.id, BigInt(input.jobListingID)));
+      return { success: true }
     })
 })

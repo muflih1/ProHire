@@ -22,7 +22,7 @@ import { Textarea } from './ui/textarea';
 import { Spinner } from './ui/spinner';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTRPC } from '@/utils/trpc';
-import { useActiveOrganization } from '@/providers/active-organization-provider';
+import { useActiveOrganization_DO_NOT_USE_INSTEAD_USE_COOKIE } from '@/providers/active-organization-provider';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 
@@ -39,7 +39,7 @@ const schema = z
     openings: z.number().int().min(1).positive(),
   })
   .refine(
-    data => data.locationRequirement === 'REMOTE' && data.streetAddress != null,
+    data => data.locationRequirement === 'REMOTE' || data.streetAddress != null,
     {
       error: 'Street address required for non-remote listing',
       path: ['streetAddress'],
@@ -87,7 +87,7 @@ export default function JobListingForm({ jobListing }: { jobListing?: any }) {
     },
   });
   const navigate = useNavigate();
-  const organization = useActiveOrganization();
+  const organization = useActiveOrganization_DO_NOT_USE_INSTEAD_USE_COOKIE();
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const action =

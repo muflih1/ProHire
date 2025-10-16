@@ -30,7 +30,7 @@ import {
 } from 'lucide-react';
 import { Suspense } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
-import { Link, useParams } from 'react-router';
+import { Link, useNavigate, useParams } from 'react-router';
 import Markdown from 'react-markdown';
 import usePermission from '@/hooks/use-permission';
 
@@ -108,12 +108,43 @@ function JobListingsImpl() {
               id={jobListing.id.toString()}
             />
           )}
+          {has(PERMISSIONS.ORG_JOB_LISTING_DELETE) && (
+            <DeleteJobListingButton jobListingID={jobListing.id.toString()} />
+          )}
         </div>
       </div>
       <div className='prose'>
         <Markdown>{jobListing.description}</Markdown>
       </div>
     </div>
+  );
+}
+
+function DeleteJobListingButton({ jobListingID }: { jobListingID: string }) {
+  const organization = useActiveOrganization_DO_NOT_USE_INSTEAD_USE_COOKIE();
+  const navigate = useNavigate();
+  const trpc = useTRPC();
+  const mutation = useMutation(
+    trpc.deleteJobListing.mutationOptions({
+      onSuccess: () => {
+        navigate('/employer', { replace: true });
+      },
+    })
+  );
+
+  return (
+    <Button
+      variant={'destructive'}
+      onClick={() => {
+        if (!confirm('This will permanently delete the job listing.')) return;
+        mutation.mutate({
+          jobListingID,
+          organizationID: organization.id.toString(),
+        });
+      }}
+    >
+      Delete
+    </Button>
   );
 }
 
