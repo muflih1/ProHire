@@ -1,4 +1,3 @@
-import { Outlet } from 'react-router';
 import { useCurrentOrganizationID } from '@/providers/current-organization-id-provider';
 import {
   Form,
@@ -21,7 +20,7 @@ import { Button } from './ui/button';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTRPC } from '@/utils/trpc';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useSuspenseQuery } from '@tanstack/react-query';
 import { ArrowRightIcon, PlusIcon } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Spinner } from './ui/spinner';
@@ -29,31 +28,70 @@ import { z } from 'zod';
 import { axios } from '@/lib/axios';
 import { toast } from 'sonner';
 import { MultiPageView } from './multi-page-view';
+import React, { Suspense } from 'react';
+import { Skeleton } from './ui/skeleton';
+import { ErrorBoundary } from 'react-error-boundary';
 
-export default function ProtectedEmployerRouteGuard() {
+export default function ProtectedEmployerRouteGuard({
+  children,
+}: React.PropsWithChildren) {
   const orgID = useCurrentOrganizationID().read();
 
   if (orgID == null || orgID === '0') {
     return <OrganizationSelect />;
   }
 
-  return <Outlet />;
+  return children;
 }
 
 function OrganizationSelect() {
+  return (
+    <Suspense fallback={<OrganizationSelectFallback />}>
+      <ErrorBoundary fallback='Failed to fetch organizations.'>
+        <OrganizationSelectImpl />
+      </ErrorBoundary>
+    </Suspense>
+  );
+}
+
+function OrganizationSelectFallback() {
+  return (
+    <div className='flex min-h-screen flex-col items-center justify-center'>
+      <Card className='w-[500px]'>
+        <CardHeader>
+          <CardTitle className='flex justify-center'>
+            <Skeleton className='w-64 h-7' />
+          </CardTitle>
+          <CardDescription className='flex justify-center'>
+            <Skeleton className='w-56 h-4' />
+          </CardDescription>
+        </CardHeader>
+        <CardContent className='space-y-2'>
+          {Array.from(new Array(2), (_, i) => i + 1).map((_, i) => (
+            <div className='flex items-center space-x-4' key={i}>
+              <Skeleton className='size-11 shrink-0 rounded-full' />
+              <Skeleton className='h-11 grow shrink' />
+            </div>
+          ))}
+        </CardContent>
+        <CardFooter>
+          <Skeleton className='h-9 w-full' />
+        </CardFooter>
+      </Card>
+    </div>
+  );
+}
+
+function OrganizationSelectImpl() {
   const trpc = useTRPC();
-  const query = useQuery(trpc.listOrganizations.queryOptions());
+  const query = useSuspenseQuery(trpc.listOrganizations.queryOptions());
 
-  if (query.isLoading) {
-    return 'loading...';
-  }
-
-  if (query.isError) {
-    return query.error.message;
-  }
-
-  if (query.data?.length === 0) {
-    return <CreateOrganizationForm />;
+  if (query.data.length === 0) {
+    return (
+      <div className='min-h-screen flex flex-col items-center justify-center'>
+        <CreateOrganizationForm />;
+      </div>
+    );
   }
 
   return (
@@ -95,7 +133,15 @@ function OrganizationSelect() {
   );
 }
 
-function ChooseOrganization({ organizations }: { organizations: any[] }) {
+function ChooseOrganization({
+  organizations,
+}: {
+  organizations: Array<{
+    id: bigint;
+    name: string;
+    imageURL: string | null;
+  }>;
+}) {
   const mutation = useMutation({
     mutationKey: ['choose-organization'],
     mutationFn: async (newOrgID: string) => {
@@ -143,6 +189,8 @@ const schema = z.object({
   name: z.string().nonempty(),
 });
 
+let id = 0;
+
 function CreateOrganizationForm({
   onReturn,
   withBackButton = false,
@@ -155,16 +203,25 @@ function CreateOrganizationForm({
     defaultValues: { name: '' },
   });
   const trpc = useTRPC();
-  const queryClient = useQueryClient();
   const mutation = useMutation(
     trpc.createOrganization.mutationOptions({
       onSuccess: () => {
-        queryClient.invalidateQueries({
-          queryKey: trpc.listOrganizations.queryKey(),
-        });
         if (onReturn) {
           onReturn();
         }
+      },
+      onMutate: async (newOrg, context) => {
+        await context.client.cancelQueries({
+          queryKey: trpc.listOrganizations.queryKey(),
+        });
+        const previous = context.client.getQueryData(
+          trpc.listOrganizations.queryKey()
+        );
+        context.client.setQueryData(trpc.listOrganizations.queryKey(), prev => [
+          ...(prev || []),
+          { ...newOrg, id: BigInt(++id), imageURL: null },
+        ]);
+        return { previous };
       },
     })
   );

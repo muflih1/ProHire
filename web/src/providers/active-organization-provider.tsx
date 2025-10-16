@@ -2,6 +2,7 @@ import React, { createContext, Suspense, useContext } from 'react';
 import { useCurrentOrganizationID } from './current-organization-id-provider';
 import { useTRPC } from '@/utils/trpc';
 import { useSuspenseQuery } from '@tanstack/react-query';
+import { ErrorBoundary } from 'react-error-boundary';
 
 type ContextValueType = {
   id: bigint;
@@ -14,9 +15,7 @@ type ContextValueType = {
   };
 };
 
-const ActiveOrganizationContext = createContext<
-  ContextValueType | null
->(null);
+const ActiveOrganizationContext = createContext<ContextValueType | null>(null);
 
 type Props = {
   children?: React.ReactNode;
@@ -25,7 +24,9 @@ type Props = {
 export function ActiveOrganizationProvider(props: Props) {
   return (
     <Suspense fallback='Loading...'>
-      <ActiveOrganizationProviderImpl {...props} />
+      <ErrorBoundary fallback='Failed to fetch active organization.'>
+        <ActiveOrganizationProviderImpl {...props} />
+      </ErrorBoundary>
     </Suspense>
   );
 }

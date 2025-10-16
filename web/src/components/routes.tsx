@@ -1,32 +1,21 @@
 import { Route, Routes } from 'react-router';
 import ProtectedRoute from './protected-route';
 import { lazy, Suspense } from 'react';
-import { CurrentOrganizationIDProvider } from '@/providers/current-organization-id-provider';
-import ProtectedEmployerRouteGuard from './protected-employer-route-guard';
-import { ActiveOrganizationProvider } from '@/providers/active-organization-provider';
 
 const Home = lazy(() => import('@/routes/home'));
 const Login = lazy(() => import('@/routes/login'));
 const Signup = lazy(() => import('@/routes/signup'));
+const EmployerRootLayout = lazy(() => import('./employer-root-layout'));
 const Employer = lazy(() => import('@/routes/employer'));
 const Posting = lazy(() => import('@/routes/employer/posting'));
 
-export default function Router() {
+export default function MainRoutes() {
   return (
     <Suspense fallback='Page loading...'>
       <Routes>
         <Route element={<ProtectedRoute requireAuth redirectURL='/login' />}>
           <Route index element={<Home />} />
-          <Route
-            path='/employer'
-            element={
-              <CurrentOrganizationIDProvider readonly>
-                <ActiveOrganizationProvider>
-                  <ProtectedEmployerRouteGuard />
-                </ActiveOrganizationProvider>
-              </CurrentOrganizationIDProvider>
-            }
-          >
+          <Route path='/employer' element={<EmployerRootLayout />}>
             <Route index element={<Employer />} />
             <Route path='posting' element={<Posting />} />
           </Route>

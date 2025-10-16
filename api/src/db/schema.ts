@@ -1,4 +1,5 @@
-import { customType, bigint, index, inet, pgTable, timestamp, uniqueIndex, varchar, text, integer, boolean } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { customType, bigint, index, inet, pgTable, timestamp, uniqueIndex, varchar, text, integer, boolean, primaryKey } from "drizzle-orm/pg-core";
 
 class Snowflake {
   private static _instance: Snowflake
@@ -148,20 +149,31 @@ export const jobListingsTable = pgTable('job_listings', {
   organizationID: bigint("organization_id", { mode: "bigint" }).notNull().references(() => organizationsTable.id, { onDelete: 'cascade' }),
   title: varchar({ length: 140 }).notNull(),
   description: text().notNull(),
-  wage: integer(),
-  wageInterval: varchar("wage_interval", { length: 50 }),
-  stateAbbreviation: varchar({ length: 255 }),
-  city: varchar({ length: 50 }),
-  isFeatured: boolean().notNull().default(false),
-  locationRequirement: varchar("location_requirement", { length: 50 }),
+  wage: integer().notNull(),
+  wageInterval: varchar('wage_interval', { length: 50 }),
+  streetAddress: varchar('street_address', { length: 255 }),
+  locationRequirement: varchar("location_requirement", { length: 50 }).notNull(),
   experieceLevel: varchar("experience_level", { length: 50 }),
+  openings: integer().notNull(),
   status: varchar({ length: 50 }).default("DRAFT"),
   type: varchar({ length: 50 }),
   postedAt: timestamp({ withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date())
-}, t => [index().on(t.stateAbbreviation)])
+})
 
+export const skillsTable = pgTable('skills', {
+  id: bigint({ mode: "bigint" }).primaryKey().$defaultFn(() => snowflake.nextId()),
+  name: varchar({ length: 100 }).notNull().unique(),
+  description: text(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().$onUpdate(() => new Date())
+})
+
+export const jobListingSkillsTable = pgTable('job_listing_skills', {
+  skillID: bigint('skill_id', { mode: 'bigint' }).notNull().references(() => skillsTable.id, { onDelete: 'cascade' }),
+  jobListingID: bigint('job_listing_id', { mode: 'bigint' }).notNull().references(() => jobListingsTable.id, { onDelete: 'cascade' })
+}, t => [primaryKey({ columns: [t.skillID, t.jobListingID] })])
 
 export const jobListingApplicationsTable = pgTable("job_listing_applications", {
   id: bigint({ mode: "bigint" }).primaryKey().$default(() => snowflake.nextId()),

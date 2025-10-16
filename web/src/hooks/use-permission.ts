@@ -1,7 +1,7 @@
 import { useActiveOrganization } from "@/providers/active-organization-provider";
 import { useMemo } from "react";
 
-export function usePermissions() {
+export default function usePermission() {
   const organization = useActiveOrganization()
 
   return useMemo(() =>

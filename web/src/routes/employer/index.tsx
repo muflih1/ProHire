@@ -1,10 +1,10 @@
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router';
-import { usePermissions } from '@/hooks/use-permissions';
 import { PERMISSIONS } from '@/constants/permissions';
+import usePermission from '@/hooks/use-permission';
 
 export default function Employer() {
-  const has = usePermissions();
+  const has = usePermission();
 
   return (
     <div className='min-h-screen flex flex-col items-center justify-center space-y-5'>

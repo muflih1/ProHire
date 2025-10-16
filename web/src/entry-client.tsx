@@ -37,7 +37,3 @@ declare global {
     __PRELOADED_STATE__?: SuperJSONResult;
   }
 }
-
-queueMicrotask(() => {
-  console.log('Hello, World!')
-})

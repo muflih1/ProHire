@@ -46,6 +46,10 @@ export function CurrentOrganizationIDProvider({
           );
         }
         setOrgID(orgID);
+        Cookie.set('c_org', orgID, {
+          path: '/',
+          expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365),
+        });
       },
     }),
     [orgID, readonly]

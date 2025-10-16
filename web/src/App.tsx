@@ -1,9 +1,9 @@
-import Router from "./components/router";
+import MainRoutes from './components/routes';
 
 export default function App() {
   return (
     <div>
-      <Router />
+      <MainRoutes />
     </div>
   );
 }
