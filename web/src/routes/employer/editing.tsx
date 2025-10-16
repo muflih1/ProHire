@@ -2,7 +2,7 @@ import JobListingForm from '@/components/job-listing-form';
 import { Card, CardContent } from '@/components/ui/card';
 import withPermission from '@/components/with-permission';
 import { PERMISSIONS } from '@/constants/permissions';
-import { useActiveOrganization } from '@/providers/active-organization-provider';
+import { useActiveOrganization_DO_NOT_USE_INSTEAD_USE_COOKIE } from '@/providers/active-organization-provider';
 import { omit } from '@/utils/object';
 import { useTRPC } from '@/utils/trpc';
 import { useSuspenseQuery } from '@tanstack/react-query';
@@ -22,7 +22,7 @@ function JobListingEditing() {
 
 function JobListingEditingImpl() {
   const params = useParams<{ jobListingID: string }>();
-  const organization = useActiveOrganization();
+  const organization = useActiveOrganization_DO_NOT_USE_INSTEAD_USE_COOKIE();
   const trpc = useTRPC();
   const { data: jobListing } = useSuspenseQuery(
     trpc.getJobListingByID.queryOptions({

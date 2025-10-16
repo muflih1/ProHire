@@ -3,6 +3,7 @@ import { auth } from "./auth.js";
 import { getUserPermissions } from "../../lib/get-user-permissions.js";
 
 export const hasPermission = (requiredPermission: string, message?: string) => auth.unstable_pipe(async ({ ctx, next, input }) => {
+  console.log({input}, 'first')
   if (typeof input !== 'object' || input === null || !('organizationID' in input) || typeof (input as any).organizationID !== 'string') {
     throw new TRPCError({ code: 'BAD_REQUEST' })
   }

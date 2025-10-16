@@ -1,7 +1,7 @@
 import { t } from "../init.js";
 import { db } from "../../db/index.js";
 import { jobListingsTable, membersTable, organizationsTable, permissionsTable, rolePermissionsTable, rolesTable, usersTable } from "../../db/schema.js";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { PERMISSIONS } from "../../constants/permmisions.js";
@@ -25,8 +25,8 @@ export const appRouter = t.router({
   }),
 
   createOrganization: t.procedure
-    .use(auth)
     .input(z.object({ name: z.string().nonempty() }))
+    .use(auth)
     .mutation(async ({ ctx, input }) => {
       return await db.transaction(async tx => {
         const [organization] = await tx.insert(organizationsTable).values({ name: input.name }).returning();
@@ -98,37 +98,15 @@ export const appRouter = t.router({
         return { organization, membership }
       })
     }),
-  organization: t.procedure
-    .use(auth)
-    .query(async ({ ctx }) => {
-      return await db
-        .select({
-          orgId: organizationsTable.id,
-          orgName: organizationsTable.name,
-          orgCreatedAt: organizationsTable.createdAt,
-          userID: usersTable.id,
-          userDisplayName: usersTable.displayName,
-          roleId: rolesTable.id,
-          roleName: rolesTable.name,
-          roleDescription: rolesTable.description,
-          permissionName: permissionsTable.name
-        })
-        .from(membersTable)
-        .innerJoin(organizationsTable, eq(membersTable.organizationID, organizationsTable.id))
-        .innerJoin(usersTable, eq(membersTable.userID, usersTable.id))
-        .innerJoin(rolesTable, eq(membersTable.roleID, rolesTable.id))
-        .innerJoin(rolePermissionsTable, eq(rolePermissionsTable.roleID, rolesTable.id))
-        .innerJoin(permissionsTable, eq(rolePermissionsTable.permissionID, permissionsTable.id))
-        .where(eq(membersTable.userID, ctx.session.userID))
-    }),
+
   listOrganizations: t.procedure
     .use(auth)
     .query(async ({ ctx }) => {
       return await db.select({ id: organizationsTable.id, name: organizationsTable.name, imageURL: organizationsTable.imageURL }).from(membersTable).innerJoin(organizationsTable, eq(membersTable.organizationID, organizationsTable.id)).where(eq(membersTable.userID, ctx.session.userID))
     }),
   getActiveOrganization: t.procedure
-    .use(auth)
     .input(z.object({ organizationID: z.string() }))
+    .use(auth)
     .query(async ({ ctx, input }) => {
       const rows = await db
         .select({
@@ -256,6 +234,26 @@ export const appRouter = t.router({
     .use(hasPermission(PERMISSIONS.ORG_JOB_LISTING_READ, "You don't have the permission to see the job listing"))
     .query(async ({ input }) => {
       const [jobListing] = await db.select().from(jobListingsTable).where(eq(jobListingsTable.id, BigInt(input.jobListingID)))
+
+      return jobListing
+    }),
+  updateJobListingStatus: t.procedure
+    .input(z.object({ jobLisstingID: z.string().nonempty(), organizationID: z.string().nonempty(), newStatus: z.enum(['PUBLISHED', 'UNLISTED']) }))
+    .use(hasPermission(PERMISSIONS.ORG_JOB_LISTING_CHANGE_STATUS, "You don't have the permission to update this job listing's status"))
+    .mutation(async ({ input }) => {
+
+      const [jobListing] = await db
+        .update(jobListingsTable)
+        .set({
+          status: input.newStatus,
+          postedAt: sql`
+            CASE 
+              WHEN ${input.newStatus} = 'PUBLISHED' AND ${jobListingsTable.postedAt} IS NULL THEN NOW()
+              ELSE ${jobListingsTable.postedAt}
+            END`,
+        })
+        .where(eq(jobListingsTable.id, BigInt(input.jobLisstingID)))
+        .returning()
 
       return jobListing
     })

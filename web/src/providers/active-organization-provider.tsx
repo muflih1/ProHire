@@ -45,7 +45,7 @@ function ActiveOrganizationProviderImpl(props: Props) {
   );
 }
 
-export function useActiveOrganization() {
+export function useActiveOrganization_DO_NOT_USE_INSTEAD_USE_COOKIE() {
   const ctx = useContext(ActiveOrganizationContext);
   if (ctx == null) {
     throw new Error(
