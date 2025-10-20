@@ -34,11 +34,11 @@ export default function Header() {
                 <div className='shrink-0 basis-9'>
                   <Avatar className='size-9'>
                     <AvatarImage
-                      src={user!.imageURL ?? undefined}
+                      src={user?.imageURL ?? undefined}
                       alt='Profile picture'
                     />
                     <AvatarFallback>
-                      {user!.displayName.charAt(0)}
+                      {user?.displayName.charAt(0)}
                     </AvatarFallback>
                   </Avatar>
                 </div>
