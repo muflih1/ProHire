@@ -5,14 +5,14 @@ import { createContext, useContext } from 'react';
 
 function useViewerQuery() {
   const trpc = useTRPC();
-  const viewerQuery = useSuspenseQuery(trpc.viewer.queryOptions());
+  const { data } = useSuspenseQuery(trpc.viewer.queryOptions());
 
-  return viewerQuery;
+  return data;
 }
 
-const AuthContext = createContext<null | ReturnType<typeof useViewerQuery>>(
-  null
-);
+const AuthContext = createContext<
+  ReturnType<typeof useViewerQuery> | undefined
+>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value = useViewerQuery();
@@ -20,9 +20,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useAuth() {
-  const ctx = useContext(AuthContext)
-  if (ctx == null) {
-    throw new Error('useAuth must be called inside <AuthProvider />')
+  const ctx = useContext(AuthContext);
+  if (ctx === undefined) {
+    throw new Error('useAuth must be called inside <AuthProvider />');
   }
   return ctx;
 }

@@ -6,10 +6,11 @@ const Home = lazy(() => import('@/routes/home'));
 const Login = lazy(() => import('@/routes/login'));
 const Signup = lazy(() => import('@/routes/signup'));
 const EmployerRootLayout = lazy(() => import('./employer-root-layout'));
-const Employer = lazy(() => import('@/routes/employer'));
-const Posting = lazy(() => import('@/routes/employer/posting'));
-const JobListing = lazy(() => import('@/routes/employer/job-listings'));
-const JobListingEditing = lazy(() => import('@/routes/employer/editing'));
+const Employer = lazy(() => import('@/routes/employers'));
+const Posting = lazy(() => import('@/routes/employers/posting'));
+const JobListing = lazy(() => import('@/routes/employers/job-listings'));
+const JobListingEditing = lazy(() => import('@/routes/employers/editing'));
+const Pricing = lazy(() => import('@/routes/employers/pricing'));
 
 export default function MainRoutes() {
   return (
@@ -17,9 +18,14 @@ export default function MainRoutes() {
       <Routes>
         <Route element={<ProtectedRoute requireAuth redirectURL='/login' />}>
           <Route index element={<Home />} />
-          <Route path='/employer' element={<EmployerRootLayout />}>
+          <Route
+            path='job-listings/:jobListingID'
+            element={<div>Job Listing</div>}
+          />
+          <Route path='/employers' element={<EmployerRootLayout />}>
             <Route index element={<Employer />} />
             <Route path='posting' element={<Posting />} />
+            <Route path='pricing' element={<Pricing />} />
             <Route path='job-listings/:jobListingID' element={<Outlet />}>
               <Route index element={<JobListing />} />
               <Route path='editing' element={<JobListingEditing />} />

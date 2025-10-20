@@ -18,13 +18,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
-import { Textarea } from './ui/textarea';
 import { Spinner } from './ui/spinner';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTRPC } from '@/utils/trpc';
 import { useActiveOrganization_DO_NOT_USE_INSTEAD_USE_COOKIE } from '@/providers/active-organization-provider';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
+import RichTextEditor from './rich-text-editor';
 
 const schema = z
   .object({
@@ -74,17 +74,23 @@ const experienceLevels = [
 export default function JobListingForm({ jobListing }: { jobListing?: any }) {
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: jobListing ?? {
-      title: '',
-      description: '',
-      streetAddress: '',
-      wage: null,
-      wageInterval: 'YEARLY',
-      experienceLevel: 'JUNIOR',
-      type: 'FULL_TIME',
-      locationRequirement: 'IN_OFFICE',
-      openings: 1,
-    },
+    defaultValues: jobListing
+      ? {
+          ...jobListing,
+          wage: jobListing.wageInPaise / 100,
+          id: undefined,
+        }
+      : {
+          title: '',
+          description: '',
+          streetAddress: '',
+          wage: null,
+          wageInterval: 'YEARLY',
+          experienceLevel: 'JUNIOR',
+          type: 'FULL_TIME',
+          locationRequirement: 'IN_OFFICE',
+          openings: 1,
+        },
   });
   const navigate = useNavigate();
   const organization = useActiveOrganization_DO_NOT_USE_INSTEAD_USE_COOKIE();
@@ -92,7 +98,7 @@ export default function JobListingForm({ jobListing }: { jobListing?: any }) {
   const queryClient = useQueryClient();
   const action =
     jobListing != null ? trpc.updateJobListing : trpc.createJobListing;
-  const mutation = useMutation(
+  const { mutate, isPending } = useMutation(
     action.mutationOptions({
       onSuccess: jobListing => {
         if (jobListing != null) {
@@ -100,7 +106,7 @@ export default function JobListingForm({ jobListing }: { jobListing?: any }) {
             queryKey: trpc.getJobListingByID.pathKey(),
           });
         }
-        navigate(`/employer/job-listings/${jobListing.id.toString()}`);
+        navigate(`/employers/job-listings/${jobListing.id}`);
       },
       onError: err => {
         toast.error(err.data?.code);
@@ -109,7 +115,7 @@ export default function JobListingForm({ jobListing }: { jobListing?: any }) {
   );
 
   function submit(data: FormData) {
-    mutation.mutate({
+    mutate({
       ...data,
       organizationID: organization.id.toString(),
       ...((jobListing != null
@@ -299,23 +305,19 @@ export default function JobListingForm({ jobListing }: { jobListing?: any }) {
               <FormItem>
                 <FormLabel>Job description</FormLabel>
                 <FormControl>
-                  <Textarea {...field} />
+                  <RichTextEditor {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
 
-          <Button
-            type='submit'
-            className='w-full'
-            disabled={mutation.isPending}
-          >
-            Create job listing
+          <Button type='submit' className='w-full' disabled={isPending}>
+            {jobListing != null ? 'Update job listing' : 'Create job listing'}
           </Button>
         </form>
       </Form>
-      {mutation.isPending && (
+      {isPending && (
         <div className='absolute flex flex-col items-center justify-center inset-0 bg-white/85 backdrop-blur-md rounded-xl'>
           <div className='flex flex-col items-center space-y-1'>
             <Spinner />

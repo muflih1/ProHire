@@ -38,13 +38,13 @@ export default function Login() {
     defaultValues: { email: '', password: '' },
   });
 
-  const mutation = useMutation({
+  const { mutate, isPending } = useMutation({
     mutationFn: userLogin,
     onError: (err: any) => toast.error(err.response.data.error.message),
     onSuccess: () => goForceFullPageRedirectTo('/', true),
   });
 
-  const submit: SubmitHandler<FormData> = data => mutation.mutate(data);
+  const submit: SubmitHandler<FormData> = data => mutate(data);
 
   return (
     <div className='min-h-screen flex items-center justify-center w-full'>
@@ -86,12 +86,8 @@ export default function Login() {
                 )}
               />
 
-              <Button
-                type='submit'
-                disabled={mutation.isPending}
-                className='w-full'
-              >
-                {mutation.isPending ? <Spinner /> : 'Log in'}
+              <Button type='submit' disabled={isPending} className='w-full'>
+                {isPending ? <Spinner /> : 'Log in'}
               </Button>
             </form>
           </Form>

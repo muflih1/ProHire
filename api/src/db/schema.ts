@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { customType, bigint, index, inet, pgTable, timestamp, uniqueIndex, varchar, text, integer, boolean, primaryKey } from "drizzle-orm/pg-core";
+import { customType, bigint, index, inet, pgTable, timestamp, uniqueIndex, varchar, text, integer, primaryKey, boolean } from "drizzle-orm/pg-core";
 
 class Snowflake {
   private static _instance: Snowflake
@@ -149,7 +149,7 @@ export const jobListingsTable = pgTable('job_listings', {
   organizationID: bigint("organization_id", { mode: "bigint" }).notNull().references(() => organizationsTable.id, { onDelete: 'cascade' }),
   title: varchar({ length: 140 }).notNull(),
   description: text().notNull(),
-  wage: integer().notNull(),
+  wageInPaise: integer('wage_in_paise').notNull(),
   wageInterval: varchar('wage_interval', { length: 50 }),
   streetAddress: varchar('street_address', { length: 255 }),
   locationRequirement: varchar("location_requirement", { length: 50 }).notNull(),
@@ -193,4 +193,57 @@ export const userResumesTable = pgTable('user_resumes', {
   summury: text(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date())
+})
+
+export const plansTable = pgTable('plans', {
+  id: bigint({ mode: 'bigint' }).primaryKey().$default(() => snowflake.nextId()),
+  name: varchar({ length: 80 }).notNull().unique(),
+  description: text(),
+  pricePerMonthInPaise: integer('price_per_month_in_paise').notNull(),
+  pricePerYearInPaise: integer('price_per_year_in_paise'),
+  isPubliclyVisible: boolean('is_publicly_visible').default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().$onUpdate(() => new Date())
+})
+
+export const featuresTable = pgTable('features', {
+  id: bigint({ mode: 'bigint' }).primaryKey().$default(() => snowflake.nextId()),
+  name: varchar({ length: 80 }).notNull(),
+  description: text(),
+  isPubliclyVisible: boolean('is_publicly_visible').default(true),
+  key: varchar({ length: 160 }).notNull().unique(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().$onUpdate(() => new Date())
+})
+
+export const planFeaturesTable = pgTable('plan_features', {
+  id: bigint({ mode: 'bigint' }).primaryKey().$default(() => snowflake.nextId()),
+  planID: bigint('plan_id', { mode: 'bigint' }).notNull().references(() => plansTable.id, { onDelete: 'cascade' }),
+  featureID: bigint('feature_id', { mode: 'bigint' }).notNull().references(() => featuresTable.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().$onUpdate(() => new Date())
+}, t => [uniqueIndex().on(t.planID, t.featureID)])
+
+export const organizationSubscriptionsTable = pgTable('organization_subscriptions', {
+  id: bigint({ mode: "bigint" }).primaryKey().$default(() => snowflake.nextId()),
+  organizationID: bigint("organization_id", { mode: "bigint" }).notNull().references(() => organizationsTable.id, { onDelete: 'cascade' }),
+  planID: bigint('plan_id', { mode: 'bigint' }).notNull().references(() => plansTable.id, { onDelete: 'cascade' }),
+  startDate: timestamp({ withTimezone: true }).notNull(),
+  endDate: timestamp({ withTimezone: true }).notNull(),
+  status: varchar({ length: 20 }).default('PAYMENT_PENDING'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().$onUpdate(() => new Date())
+}, t => [uniqueIndex().on(t.organizationID).where(sql`${t.status} = 'ACTIVE'`)])
+
+export const organizationPaymentsTable = pgTable('organization_payments', {
+  id: bigint({ mode: 'bigint' }).primaryKey().$default(() => snowflake.nextId()),
+  subscriptionID: bigint('subscription_id', { mode: 'bigint' }).notNull().references(() => organizationSubscriptionsTable.id, { onDelete: 'cascade' }),
+  amountInPaise: integer('amount_in_paise').notNull(),
+  currency: varchar({ length: 10 }).notNull().default('INR'),
+  status: varchar({ length: 50 }).notNull(),
+  provider: varchar({ length: 50 }).default('RAZORPAY'),
+  providerID: varchar('provider_id', { length: 255 }),
+  paidAt: timestamp('paid_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().$onUpdate(() => new Date())
 })

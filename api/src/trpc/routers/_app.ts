@@ -1,13 +1,12 @@
 import { t } from "../init.js";
 import { db } from "../../db/index.js";
-import { jobListingsTable, membersTable, organizationsTable, permissionsTable, rolePermissionsTable, rolesTable, usersTable } from "../../db/schema.js";
-import { and, eq, sql } from "drizzle-orm";
+import { featuresTable, jobListingApplicationsTable, jobListingsTable, membersTable, organizationsTable, organizationSubscriptionsTable, permissionsTable, planFeaturesTable, plansTable, rolePermissionsTable, rolesTable, usersTable } from "../../db/schema.js";
+import { and, count, desc, eq, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { PERMISSIONS } from "../../constants/permmisions.js";
 import { hasPermission } from "../middlewares/has-permission.js";
 import { auth } from "../middlewares/auth.js";
-import { getUserPermissions } from "../../lib/get-user-permissions.js";
 
 export const appRouter = t.router({
   viewer: t.procedure.query(async ({ ctx }) => {
@@ -18,10 +17,10 @@ export const appRouter = t.router({
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, ctx.session.userID));
 
     if (!user) {
-      return null
+      return null;
     }
 
-    return user
+    return user;
   }),
 
   createOrganization: t.procedure
@@ -33,6 +32,17 @@ export const appRouter = t.router({
         if (organization == null) {
           throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' })
         }
+        const [defaultPlan] = await tx.select().from(plansTable).where(eq(plansTable.name, 'Free'));
+        if (defaultPlan == null) {
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+        }
+        await tx.insert(organizationSubscriptionsTable).values({
+          organizationID: organization.id,
+          planID: defaultPlan.id,
+          startDate: new Date(),
+          endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 100)),
+          status: 'ACTIVE'
+        })
         const [[ownerRole, adminRole, memberRole], permissions] = await Promise.all([
           tx.insert(rolesTable)
             .values([
@@ -110,18 +120,50 @@ export const appRouter = t.router({
     .query(async ({ ctx, input }) => {
       const rows = await db
         .select({
-          roleId: rolesTable.id,
-          roleName: rolesTable.name,
           orgId: organizationsTable.id,
           orgName: organizationsTable.name,
           orgImage: organizationsTable.imageURL,
+
+          roleId: rolesTable.id,
+          roleName: rolesTable.name,
+          roleDesc: rolesTable.description,
           permissionName: permissionsTable.name,
+
+          planId: plansTable.id,
+          planName: plansTable.name,
+          planDescription: plansTable.description,
+
+          featureId: featuresTable.id,
+          featureKey: featuresTable.key,
+          featureName: featuresTable.name,
         })
         .from(membersTable)
+
+        // 👇 Member → Org
         .innerJoin(organizationsTable, eq(membersTable.organizationID, organizationsTable.id))
+
+        // 👇 Member → Role → Permissions
         .innerJoin(rolesTable, eq(membersTable.roleID, rolesTable.id))
         .innerJoin(rolePermissionsTable, eq(rolesTable.id, rolePermissionsTable.roleID))
         .innerJoin(permissionsTable, eq(rolePermissionsTable.permissionID, permissionsTable.id))
+
+        // 👇 Org → Active Subscription
+        .innerJoin(
+          organizationSubscriptionsTable,
+          and(
+            eq(organizationSubscriptionsTable.organizationID, organizationsTable.id),
+            eq(organizationSubscriptionsTable.status, 'ACTIVE')
+          )
+        )
+
+        // 👇 Subscription → Plan
+        .innerJoin(plansTable, eq(organizationSubscriptionsTable.planID, plansTable.id))
+
+        // 👇 Plan → Features (LEFT join — may have none)
+        .leftJoin(planFeaturesTable, eq(plansTable.id, planFeaturesTable.planID))
+        .leftJoin(featuresTable, eq(featuresTable.id, planFeaturesTable.featureID))
+
+        // 👇 Restrict to current user + org
         .where(
           and(
             eq(membersTable.userID, ctx.session.userID),
@@ -129,8 +171,10 @@ export const appRouter = t.router({
           )
         )
 
+
       const aggregated = rows.reduce((acc, row) => {
-        const key = `${row.roleId}$${row.orgId}`
+        const key = `${row.orgId}-${row.roleId}`
+
         if (!acc[key]) {
           acc[key] = {
             id: row.orgId,
@@ -139,18 +183,33 @@ export const appRouter = t.router({
             role: {
               id: row.roleId,
               name: row.roleName,
-              permissions: []
+              description: row.roleDesc,
+              permissions: [],
+            },
+            plan: {
+              id: row.planId,
+              name: row.planName,
+              description: row.planDescription,
+              features: [],
             },
           }
         }
-        if (!acc[key].role.permissions.includes(row.permissionName)) {
+
+        if (row.permissionName && !acc[key].role.permissions.includes(row.permissionName)) {
           acc[key].role.permissions.push(row.permissionName)
         }
+
+        if (
+          row.featureKey &&
+          !acc[key].plan.features.includes(row.featureKey)
+        ) {
+          acc[key].plan.features.push(row.featureKey,)
+        }
+
         return acc
-      }, {} as Record<string, {
-        id: bigint; name: string; imageURL: string | null; role: { id: bigint; name: string; permissions: string[] },
-      }>)
-      return Object.values(aggregated)[0]
+      }, {} as Record<string, { id: bigint; name: string; imageURL: string | null; role: { id: bigint; name: string; description: string | null; permissions: string[] }; plan: { id: bigint; name: string; description: string | null; features: string[] } }>)
+
+      return Object.values(aggregated)[0];
     }),
   createJobListing: t.procedure
     .input(z
@@ -161,7 +220,7 @@ export const appRouter = t.router({
         locationRequirement: z.enum(['IN_OFFICE', 'HYBRID', 'REMOTE']),
         streetAddress: z.string(),
         type: z.enum(['INTERNSHIP', 'PART_TIME', 'FULL_TIME']),
-        wage: z.number().int().positive().min(1).nullable(),
+        wage: z.number().int().positive().min(1),
         wageInterval: z.enum(['HOURLY', 'YEARLY']).nullable(),
         openings: z.number().int().min(1).positive(),
         organizationID: z.string().nonempty("You don't have the permission to create a job listing")
@@ -180,7 +239,7 @@ export const appRouter = t.router({
         .values({
           ...input,
           organizationID: BigInt(input.organizationID),
-          wage: input.wage ?? 0,
+          wageInPaise: input.wage * 100,
         })
         .returning()
 
@@ -196,7 +255,7 @@ export const appRouter = t.router({
         locationRequirement: z.enum(['IN_OFFICE', 'HYBRID', 'REMOTE']),
         streetAddress: z.string(),
         type: z.enum(['INTERNSHIP', 'PART_TIME', 'FULL_TIME']),
-        wage: z.number().int().positive().min(1).nullable(),
+        wage: z.number().int().positive().min(1),
         wageInterval: z.enum(['HOURLY', 'YEARLY']).nullable(),
         openings: z.number().int().min(1).positive(),
         organizationID: z.string().nonempty("You don't have the permission to create a job listing"),
@@ -216,7 +275,7 @@ export const appRouter = t.router({
         .set({
           ...input,
           organizationID: BigInt(input.organizationID),
-          wage: input.wage ?? 0,
+          wageInPaise: input.wage * 100,
         })
         .where(eq(jobListingsTable.id, BigInt(input.jobListingID)))
         .returning()
@@ -264,7 +323,112 @@ export const appRouter = t.router({
     .mutation(async ({ input }) => {
       await db
         .delete(jobListingsTable)
-        .where(eq(jobListingsTable.id, BigInt(input.jobListingID)));
+        .where(
+          eq(jobListingsTable.id, BigInt(input.jobListingID)),
+        );
       return { success: true }
-    })
+    }),
+
+  getJobListingList: t.procedure
+    .query(async () => {
+      const rows = await db
+        .select()
+        .from(jobListingsTable)
+        .leftJoin(organizationsTable, eq(jobListingsTable.organizationID, organizationsTable.id))
+        .where(eq(jobListingsTable.status, 'PUBLISHED'))
+
+      if (rows.length === 0) {
+        return []
+      }
+
+      const formatted = rows.reduce((acc, jobListings) => {
+        const key = `${jobListings.job_listings.id}$${jobListings.organizations?.id}`
+        if (!acc[key]) {
+          acc[key] = {
+            ...jobListings.job_listings,
+            organization: jobListings.organizations
+          }
+        }
+        return acc
+      }, {} as Record<string, typeof jobListingsTable.$inferSelect & { organization: null | typeof organizationsTable.$inferInsert }>)
+
+      return Object.values(formatted)
+    }),
+
+  getOrganizationPlansList: t.procedure.input(z.object({ organizationID: z.string().nonempty() })).use(auth).query(async ({ input }) => {
+    const rows = await db
+      .select({
+        planId: plansTable.id,
+        planName: plansTable.name,
+        planDesc: plansTable.description,
+        planPricePerMonthInPaise: plansTable.pricePerMonthInPaise,
+        planPricePerYearInPaise: plansTable.pricePerYearInPaise,
+        planFeatureId: featuresTable.id,
+        planFeatureName: featuresTable.name,
+        planFeatureIsPubliclyVisible: featuresTable.isPubliclyVisible,
+        subscriptionId: organizationSubscriptionsTable.id
+      })
+      .from(plansTable)
+      .innerJoin(planFeaturesTable, eq(planFeaturesTable.planID, plansTable.id))
+      .innerJoin(featuresTable, eq(planFeaturesTable.featureID, featuresTable.id))
+      .leftJoin(
+        organizationSubscriptionsTable,
+        and(
+          eq(organizationSubscriptionsTable.planID, plansTable.id),
+          eq(organizationSubscriptionsTable.organizationID, BigInt(input.organizationID)),
+          eq(organizationSubscriptionsTable.status, 'ACTIVE'))
+      )
+      .where(eq(plansTable.isPubliclyVisible, true))
+
+    const aggregated = rows.reduce((acc, row) => {
+      const key = row.planId.toString()
+      if (!acc[key]) {
+        acc[key] = {
+          id: row.planId,
+          name: row.planName,
+          description: row.planDesc,
+          pricePerMonthInPaise: row.planPricePerMonthInPaise,
+          pricePerYearInPaise: row.planPricePerYearInPaise,
+          isActive: !!row.subscriptionId,
+          features: []
+        }
+      }
+      if (row.planFeatureIsPubliclyVisible && !acc[key].features.some(f => (f.id === row.planFeatureId))) {
+        acc[key].features.push({ id: row.planFeatureId, name: row.planFeatureName })
+      }
+      return acc
+    }, {} as Record<string, { id: bigint; name: string; description: string | null; pricePerMonthInPaise: number; pricePerYearInPaise: number | null; isActive: boolean; features: Array<{ id: bigint; name: string }> }>)
+
+    const plans = Object.values(aggregated).sort((a, b) => (a.pricePerMonthInPaise - b.pricePerMonthInPaise))
+
+    return plans
+  }),
+
+  getPublishedJobListingsCount: t.procedure.input(z.object({ organizationID: z.string().nonempty() })).use(auth).query(async ({ input }) => {
+    const [jobListingCount] = await db
+      .select({ count: count(jobListingsTable.id) })
+      .from(jobListingsTable)
+      .where(and(
+        eq(jobListingsTable.status, 'PUBLISHED'),
+        eq(jobListingsTable.organizationID, BigInt(input.organizationID))
+      ))
+    return jobListingCount
+  }),
+
+  jobListingsListEmployer: t.procedure.input(z.object({ organizationID: z.string() })).use(hasPermission(PERMISSIONS.ORG_JOB_LISTING_LIST)).query(async ({ input }) => {
+    return await db
+      .select({
+        id: jobListingsTable.id,
+        title: jobListingsTable.title,
+        status: jobListingsTable.status,
+        postedAt: jobListingsTable.postedAt,
+        applicationCount: count(jobListingApplicationsTable.userID)
+      })
+      .from(jobListingsTable)
+      .leftJoin(jobListingApplicationsTable, eq(jobListingsTable.id, jobListingApplicationsTable.jobListingID))
+      .where(eq(jobListingsTable.organizationID, BigInt(input.organizationID)))
+      .groupBy(jobListingApplicationsTable.jobListingID, jobListingsTable.id)
+      .orderBy(desc(jobListingsTable.id))
+      .limit(10)
+  })
 })

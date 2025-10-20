@@ -1,4 +1,4 @@
-import { ExperienceLevel, JobLocationRequirement, JobStatus, JobType, WageInterval } from "@/constants/job-listing";
+import type { ExperienceLevel, JobLocationRequirement, JobListingStatus, JobType, WageInterval } from "@/constants/job-listing";
 
 export function formatWageInterval(wageInterval: WageInterval) {
   switch (wageInterval) {
@@ -50,20 +50,20 @@ export function formatExperienceLevel(experienceLevel: ExperienceLevel) {
   }
 }
 
-export function formatJobStatus(jobStatus: JobStatus) {
+export function formatJobStatus(jobStatus: JobListingStatus) {
   switch (jobStatus) {
     case 'DRAFT':
       return 'Draft';
     case 'UNLISTED':
       return 'Unlisted';
     case 'PUBLISHED':
-      return 'Published'
+      return 'Active'
     default:
       throw new Error(`Unkown status: ${jobStatus satisfies never}`)
   }
 }
 
-export function formatWage(wage: number, wageInterval: WageInterval) {
+export function formatWageInPaise(wageInPaise: number, wageInterval: WageInterval) {
   const formatter = Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',
@@ -72,10 +72,10 @@ export function formatWage(wage: number, wageInterval: WageInterval) {
 
   switch (wageInterval) {
     case 'HOURLY':
-      return `${formatter.format(wage)} / hr`
-      case 'YEARLY':
-        return `${formatter.format(wage)}`
-        default:
-          throw new Error(`Unkown wage interval: ${wageInterval satisfies never}`)
+      return `${formatter.format(wageInPaise / 100)} / hr`
+    case 'YEARLY':
+      return `${formatter.format(wageInPaise / 100)}`
+    default:
+      throw new Error(`Unkown wage interval: ${wageInterval satisfies never}`)
   }
 }

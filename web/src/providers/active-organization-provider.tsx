@@ -24,9 +24,9 @@ type Props = {
 export function ActiveOrganizationProvider(props: Props) {
   return (
     <Suspense fallback='Loading...'>
-      {/* <ErrorBoundary fallback='Failed to fetch active organization.'>
-      </ErrorBoundary> */}
+      <ErrorBoundary fallback='Failed to fetch active organization.'>
         <ActiveOrganizationProviderImpl {...props} />
+      </ErrorBoundary>
     </Suspense>
   );
 }
@@ -34,12 +34,12 @@ export function ActiveOrganizationProvider(props: Props) {
 function ActiveOrganizationProviderImpl(props: Props) {
   const organizationID = useCurrentOrganizationID().read()!;
   const trpc = useTRPC();
-  const query = useSuspenseQuery(
+  const { data } = useSuspenseQuery(
     trpc.getActiveOrganization.queryOptions({ organizationID })
   );
 
   return (
-    <ActiveOrganizationContext.Provider value={query.data}>
+    <ActiveOrganizationContext.Provider value={data}>
       {props.children}
     </ActiveOrganizationContext.Provider>
   );

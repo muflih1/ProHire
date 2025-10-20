@@ -13,7 +13,7 @@ export default function ProtectedRoute({
   const location = useLocation();
   const auth = useAuth();
 
-  const isLoggedIn = auth?.data != null && auth?.data?.id != null;
+  const isLoggedIn = auth != null && auth.id != null;
 
   const shouldRedirect = requireAuth ? !isLoggedIn : isLoggedIn;
 

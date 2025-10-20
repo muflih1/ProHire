@@ -84,9 +84,9 @@ function OrganizationSelectFallback() {
 
 function OrganizationSelectImpl() {
   const trpc = useTRPC();
-  const query = useSuspenseQuery(trpc.listOrganizations.queryOptions());
+  const { data } = useSuspenseQuery(trpc.listOrganizations.queryOptions());
 
-  if (query.data.length === 0) {
+  if (data.length === 0) {
     return (
       <div className='min-h-screen flex flex-col items-center justify-center'>
         <CreateOrganizationForm />;
@@ -109,7 +109,7 @@ function OrganizationSelectImpl() {
             </CardHeader>
             <CardContent>
               <div className='flex flex-col gap-4'>
-                <ChooseOrganization organizations={query.data!} />
+                <ChooseOrganization organizations={data} />
               </div>
             </CardContent>
             <CardFooter>
@@ -142,7 +142,7 @@ function ChooseOrganization({
     imageURL: string | null;
   }>;
 }) {
-  const mutation = useMutation({
+  const { mutate, isPending } = useMutation({
     mutationKey: ['choose-organization'],
     mutationFn: async (newOrgID: string) => {
       const res = await axios.post('/organizations/select', {
@@ -162,12 +162,12 @@ function ChooseOrganization({
     <Button
       variant={'ghost'}
       key={org.id}
-      disabled={mutation.isPending}
-      onClick={() => mutation.mutate(org.id.toString())}
+      disabled={isPending}
+      onClick={() => mutate(org.id.toString())}
       size={'lg'}
       className='justify-between group'
     >
-      {mutation.isPending ? (
+      {isPending ? (
         <Spinner />
       ) : (
         <>
@@ -203,7 +203,7 @@ function CreateOrganizationForm({
     defaultValues: { name: '' },
   });
   const trpc = useTRPC();
-  const mutation = useMutation(
+  const { mutate } = useMutation(
     trpc.createOrganization.mutationOptions({
       onSuccess: () => {
         if (onReturn) {
@@ -236,7 +236,7 @@ function CreateOrganizationForm({
       <CardContent>
         <Form {...form}>
           <form
-            onSubmit={form.handleSubmit(data => mutation.mutate(data))}
+            onSubmit={form.handleSubmit(data => mutate(data))}
             noValidate
             className='space-y-6'
           >

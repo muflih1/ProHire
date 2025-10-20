@@ -17,6 +17,7 @@ export function createTRPCSSRHelpers(req: any) {
 
   return createServerSideHelpers({
     client,
+    transformer: superjson
   })
 }
 

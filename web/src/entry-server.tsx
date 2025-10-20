@@ -9,6 +9,8 @@ import { Toaster } from './components/ui/sonner';
 import type { Request, Response } from 'express';
 import { Transform } from 'stream';
 import superjson from 'superjson';
+import path from 'path';
+import fs from "fs/promises"
 
 export async function render(
   url: string,
@@ -18,6 +20,7 @@ export async function render(
 ) {
   const helpers = createTRPCSSRHelpers(req!);
   await helpers.viewer.prefetch();
+
   const dehydratedState = helpers.dehydrate();
 
   const preloadedState = `<script type="text/javascript">window.__PRELOADED_STATE__ = ${JSON.stringify(
@@ -38,8 +41,7 @@ export async function render(
           </Suspense>
         </StaticRouter>
       </TRPCProvider>
-      {/* @ts-ignore */}
-      <vite-streaming-end></vite-streaming-end>
+      {'__VITE_STREAMING_END__'}
     </StrictMode>,
     {
       onShellError() {
@@ -53,22 +55,25 @@ export async function render(
         const [htmlStart, htmlEnd] = template.split(`<!--app-html-->`);
         let htmlEnded = false;
 
+        const marker = '__VITE_STREAMING_END__';
+
         const transformStream = new Transform({
-          transform(chunk, encoding, callback) {
-            if (!htmlEnded) {
-              chunk = chunk.toString();
-              if (chunk.endsWith('<vite-streaming-end></vite-streaming-end>')) {
-                res.write(
-                  chunk.slice(0, -41) +
-                    htmlEnd.replace(`<!--preloaded-state-->`, preloadedState),
-                  'utf-8'
-                );
-              } else {
-                res.write(chunk, 'utf-8');
-              }
-            } else {
-              res.write(chunk, encoding);
+          transform(chunk, _encoding, callback) {
+            let html = chunk.toString();
+            const markerIndex = html.indexOf(marker);
+
+            if (markerIndex !== -1 && !htmlEnded) {
+              const beforeMarker = html.slice(0, markerIndex);
+              res.write(
+                beforeMarker +
+                  htmlEnd.replace(`<!--preloaded-state-->`, preloadedState),
+                'utf-8'
+              );
+              htmlEnded = true;
+            } else if (!htmlEnded) {
+              res.write(html, 'utf-8');
             }
+
             callback();
           },
         });

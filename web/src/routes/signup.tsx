@@ -42,7 +42,7 @@ export default function Signup() {
     },
   });
 
-  const mutation = useMutation({
+  const { mutate, isPending } = useMutation({
     mutationFn: async (data: FormData) => {
       const res = await axios.post('/api/auth/register', data);
       return res.data;
@@ -51,7 +51,7 @@ export default function Signup() {
     onSuccess: () => (window.location.href = '/'),
   });
 
-  const submit: SubmitHandler<FormData> = data => mutation.mutate(data);
+  const submit: SubmitHandler<FormData> = data => mutate(data);
 
   return (
     <div className='min-h-screen flex items-center justify-center w-full'>
@@ -106,12 +106,8 @@ export default function Signup() {
                 )}
               />
 
-              <Button
-                type='submit'
-                disabled={mutation.isPending}
-                className='w-full'
-              >
-                {mutation.isPending ? <Spinner /> : 'Sign up'}
+              <Button type='submit' disabled={isPending} className='w-full'>
+                {isPending ? <Spinner /> : 'Sign up'}
               </Button>
             </form>
           </Form>

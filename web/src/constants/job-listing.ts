@@ -10,5 +10,5 @@ export type JobType = typeof jobTypes[number]
 export const experienceLevels = ['JUNIOR', 'MID_LEVEL', 'SENIOR'] as const
 export type ExperienceLevel = typeof experienceLevels[number]
 
-export const jobStatus = ['DRAFT', 'UNLISTED', 'PUBLISHED'] as const
-export type JobStatus = typeof jobStatus[number]
+export const jobListingStatus = ['DRAFT', 'UNLISTED', 'PUBLISHED'] as const
+export type JobListingStatus = typeof jobListingStatus[number]
