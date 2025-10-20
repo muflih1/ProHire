@@ -22,7 +22,7 @@ import {
 } from 'lexical';
 import { $getNearestNodeOfType, mergeRegister } from '@lexical/utils';
 import { Button } from './ui/button';
-import { BoldIcon, Divide, ItalicIcon, ListIcon } from 'lucide-react';
+import { BoldIcon, ItalicIcon, ListIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   Tooltip,

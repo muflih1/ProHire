@@ -68,7 +68,6 @@ export default function useConfirm(title: string, message: string) {
                   Cancel
                 </AlertDialogCancel>
                 <AlertDialogAction
-                  className='px-10'
                   variant={actionButton.variant}
                   size={actionButton.size}
                   onClick={handleConfirm}

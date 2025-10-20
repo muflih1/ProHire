@@ -122,15 +122,11 @@ function UpdateJobListingStatusButtonImpl(
   );
   const has = useHasFeature();
 
-  const canPost = [
-    has(PLAN_FEATURES.POST_1_JOB_LISTING) && data.count < 1,
-    has(PLAN_FEATURES.POST_3_JOB_LISTING) && data.count < 3,
-    has(PLAN_FEATURES.POST_15_JOB_LISTING) && data.count < 15,
-  ];
-
   if (
     getNextJobListingStatus(props.status) === 'PUBLISHED' &&
-    !canPost.some(Boolean)
+    !((has(PLAN_FEATURES.POST_1_JOB_LISTING) && data.count < 1) ||
+      (has(PLAN_FEATURES.POST_3_JOB_LISTING) && data.count < 3) ||
+      (has(PLAN_FEATURES.POST_15_JOB_LISTING) && data.count < 15))
   ) {
     return (
       <Popover>

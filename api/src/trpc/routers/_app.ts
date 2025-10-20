@@ -1,6 +1,6 @@
 import { t } from "../init.js";
 import { db } from "../../db/index.js";
-import { featuresTable, jobListingApplicationsTable, jobListingsTable, membersTable, organizationsTable, organizationSubscriptionsTable, permissionsTable, planFeaturesTable, plansTable, rolePermissionsTable, rolesTable, usersTable } from "../../db/schema.js";
+import { featuresTable, jobListingApplicationsTable, jobListingsTable, membersTable, organizationsTable, organizationSubscriptionsTable, permissionsTable, planFeaturesTable, plansTable, rolePermissionsTable, rolesTable, userResumesTable, usersTable } from "../../db/schema.js";
 import { and, count, desc, eq, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
@@ -430,5 +430,98 @@ export const appRouter = t.router({
       .groupBy(jobListingApplicationsTable.jobListingID, jobListingsTable.id)
       .orderBy(desc(jobListingsTable.id))
       .limit(10)
-  })
+  }),
+  viewJobListing: t.procedure.input(z.object({ jobListingID: z.string() })).query(async ({ input }) => {
+    const [row] = await db
+      .select({
+        id: jobListingsTable.id,
+        title: jobListingsTable.title,
+        description: jobListingsTable.description,
+        wageInPaise: jobListingsTable.wageInPaise,
+        wageInterval: jobListingsTable.wageInterval,
+        streetAddress: jobListingsTable.streetAddress,
+        locationRequirement: jobListingsTable.locationRequirement,
+        experienceLevel: jobListingsTable.experienceLevel,
+        openings: jobListingsTable.openings,
+        type: jobListingsTable.type,
+        organization: {
+          id: organizationsTable.id,
+          name: organizationsTable.name,
+          imageURL: organizationsTable.imageURL
+        }
+      })
+      .from(jobListingsTable)
+      .innerJoin(organizationsTable, eq(jobListingsTable.organizationID, organizationsTable.id))
+      .where(and(
+        eq(jobListingsTable.id, BigInt(input.jobListingID)),
+        eq(jobListingsTable.status, 'PUBLISHED')
+      ))
+
+    return row
+  }),
+
+  getJobListingApplication: t.procedure
+    .input(z.object({ jobListingID: z.string() }))
+    .use(auth)
+    .query(async ({ ctx, input }) => {
+      const [jobListingApplication] = await db
+        .select()
+        .from(jobListingApplicationsTable)
+        .where(and(
+          eq(jobListingApplicationsTable.jobListingID, BigInt(input.jobListingID)),
+          eq(jobListingApplicationsTable.userID, ctx.session.userID)
+        ))
+
+      if (jobListingApplication == null) return null
+
+      return jobListingApplication
+    }),
+
+  getUserResume: t.procedure
+    .use(auth)
+    .query(async ({ ctx }) => {
+      return await getUserResume(ctx.session.userID)
+    }),
+
+  createJobListingApplication: t.procedure
+    .input(z.object({ jobListingID: z.string(), coverLetter: z.string().optional() }))
+    .use(auth)
+    .mutation(async ({ ctx, input }) => {
+      const [jobListing, userResume] = await Promise.all([
+        getPublicJobListing(BigInt(input.jobListingID)),
+        getUserResume(ctx.session.userID)
+      ])
+      if (userResume == null || jobListing == null) throw new TRPCError({ code: 'FORBIDDEN' });
+      await db
+        .insert(jobListingApplicationsTable)
+        .values({
+          jobListingID: BigInt(input.jobListingID),
+          userID: ctx.session.userID,
+          coverLetter: input.coverLetter
+        })
+      return { success: true, message: 'Your application was successfully submitted' }
+    })
 })
+
+async function getPublicJobListing(id: bigint) {
+  const [jobListing] = await db
+    .select()
+    .from(jobListingsTable)
+    .where(
+      and(
+        eq(jobListingsTable.id, id),
+        eq(jobListingsTable.status, 'PUBLISHED')
+      )
+    )
+  if (jobListing == null) return null;
+  return jobListing
+}
+
+async function getUserResume(userID: bigint) {
+  const [userResume] = await db
+    .select()
+    .from(userResumesTable)
+    .where(eq(userResumesTable.userID, userID))
+  if (userResume == null) return null
+  return userResume
+}
