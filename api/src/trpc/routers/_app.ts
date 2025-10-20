@@ -84,19 +84,16 @@ export const appRouter = t.router({
         }
 
         await tx.insert(rolePermissionsTable).values([
-          // Owner gets everything
           ...permissions.map((perm) => ({
             roleID: ownerRole.id,
             permissionID: perm.id,
           })),
-          // Admin gets most permissions except deleting org
           ...permissions
             .filter((p) => p.name !== 'ORG_DELETE')
             .map((perm) => ({
               roleID: adminRole.id,
               permissionID: perm.id,
             })),
-          // Member gets only read permissions
           ...permissions
             .filter((p) => p.name.endsWith('_READ') || p.name.endsWith('_LIST'))
             .map((perm) => ({
@@ -138,16 +135,10 @@ export const appRouter = t.router({
           featureName: featuresTable.name,
         })
         .from(membersTable)
-
-        // 👇 Member → Org
         .innerJoin(organizationsTable, eq(membersTable.organizationID, organizationsTable.id))
-
-        // 👇 Member → Role → Permissions
         .innerJoin(rolesTable, eq(membersTable.roleID, rolesTable.id))
         .innerJoin(rolePermissionsTable, eq(rolesTable.id, rolePermissionsTable.roleID))
         .innerJoin(permissionsTable, eq(rolePermissionsTable.permissionID, permissionsTable.id))
-
-        // 👇 Org → Active Subscription
         .innerJoin(
           organizationSubscriptionsTable,
           and(
@@ -155,15 +146,9 @@ export const appRouter = t.router({
             eq(organizationSubscriptionsTable.status, 'ACTIVE')
           )
         )
-
-        // 👇 Subscription → Plan
         .innerJoin(plansTable, eq(organizationSubscriptionsTable.planID, plansTable.id))
-
-        // 👇 Plan → Features (LEFT join — may have none)
         .leftJoin(planFeaturesTable, eq(plansTable.id, planFeaturesTable.planID))
         .leftJoin(featuresTable, eq(featuresTable.id, planFeaturesTable.featureID))
-
-        // 👇 Restrict to current user + org
         .where(
           and(
             eq(membersTable.userID, ctx.session.userID),
