@@ -11,8 +11,12 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import { Button } from './ui/button';
-import { UserIcon } from 'lucide-react';
+import { LogOutIcon, SettingsIcon, UserIcon } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { useMutation } from '@tanstack/react-query';
+import { axios } from '@/lib/axios';
+import useConfirm from '@/hooks/use-confirm';
+import { Spinner } from './ui/spinner';
 
 export default function Header() {
   const user = useAuth();
@@ -29,27 +33,43 @@ export default function Header() {
                 <UserIcon />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuLabel className='flex items-center'>
-                <div className='shrink-0 basis-9'>
-                  <Avatar className='size-9'>
-                    <AvatarImage
-                      src={user?.imageURL ?? undefined}
-                      alt='Profile picture'
-                    />
-                    <AvatarFallback>
-                      {user?.displayName.charAt(0)}
-                    </AvatarFallback>
-                  </Avatar>
+            <DropdownMenuContent className='min-w-64'>
+              <DropdownMenuLabel>
+                <div className='flex items-center gap-2 overflow-hidden'>
+                  <div className='shrink-0 basis-8'>
+                    <Avatar className='size-9'>
+                      <AvatarImage
+                        src={user?.imageURL ?? undefined}
+                        alt='Profile picture'
+                      />
+                      <AvatarFallback>
+                        {user?.displayName.charAt(0)}
+                      </AvatarFallback>
+                    </Avatar>
+                  </div>
+                  <div className='flex flex-col grow shrink leading-tight'>
+                    <span className='truncate text-sm font-semibold'>
+                      {user?.displayName}
+                    </span>
+                    <span className='truncate text-sm font-normal text-muted-foreground'>
+                      {user?.email}
+                    </span>
+                  </div>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
-                <DropdownMenuItem>Profile</DropdownMenuItem>
-                <DropdownMenuItem>Settings</DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to={'/profile'}>
+                    <UserIcon /> Profile
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <SettingsIcon /> Settings
+                </DropdownMenuItem>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
-              <DropdownMenuItem variant='destructive'>Log out</DropdownMenuItem>
+              <SignOutMenuItem />
             </DropdownMenuContent>
           </DropdownMenu>
         </SignedIn>
@@ -58,5 +78,38 @@ export default function Header() {
         </Button>
       </div>
     </header>
+  );
+}
+
+function SignOutMenuItem() {
+  const { mutate, isPending } = useMutation({
+    mutationKey: ['logout'],
+    mutationFn: () => axios.delete('/auth/logout'),
+    onSuccess: () => {
+      window.location.reload();
+    },
+  });
+  const [Dialog, confirm] = useConfirm(
+    'Log out of ProHire?',
+    'You can always log back in at any time.'
+  );
+
+  return (
+    <>
+      <DropdownMenuItem
+        variant='destructive'
+        disabled={isPending}
+        onClick={async e => {
+          e.preventDefault();
+          if (!(await confirm())) return;
+
+          mutate();
+        }}
+      >
+        {isPending && <Spinner />}
+        <LogOutIcon /> Log out
+      </DropdownMenuItem>
+      <Dialog actionButton={{ title: 'Log out' }} />
+    </>
   );
 }

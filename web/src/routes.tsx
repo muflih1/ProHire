@@ -1,8 +1,8 @@
 import { createRoutesFromElements, Route } from 'react-router';
 import ProtectedRoute from './components/protected-route';
-import Home from './routes/home';
-import Login from './routes/login';
-import Signup from './routes/signup';
+import Home from './routes/(seeker)/home';
+import Login from './routes/(auth)/login';
+import Signup from './routes/(auth)/signup';
 
 export const routes = createRoutesFromElements(
   <>

@@ -7,6 +7,11 @@ import { z } from "zod";
 import { PERMISSIONS } from "../../constants/permmisions.js";
 import { hasPermission } from "../middlewares/has-permission.js";
 import { auth } from "../middlewares/auth.js";
+import { r2 } from "../../lib/r2.js";
+import { DeleteObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { env } from "../../env.js";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
+
 
 export const appRouter = t.router({
   viewer: t.procedure.query(async ({ ctx }) => {
@@ -485,8 +490,28 @@ export const appRouter = t.router({
           coverLetter: input.coverLetter
         })
       return { success: true, message: 'Your application was successfully submitted' }
+    }),
+
+  upsertUserResume: t.procedure.input(z.object({ fileKey: z.string().nonempty() })).use(auth).mutation(async ({ ctx, input }) => {
+    const resumeFileKey = await getUserResumeFileKey(ctx.session.userID)
+    await db.insert(userResumesTable).values({ userID: ctx.session.userID, fileKey: input.fileKey }).onConflictDoUpdate({
+      target: userResumesTable.userID,
+      set: { fileKey: input.fileKey }
     })
+    if (resumeFileKey != null) {
+      await r2.send(new DeleteObjectCommand({
+        Bucket: env.R2_BUCKET_NAME,
+        Key: resumeFileKey
+      }))
+    }
+    return { success: true }
+  }),
 })
+
+async function getUserResumeFileKey(userID: bigint) {
+  const [resume] = await db.select({ fileKey: userResumesTable.fileKey }).from(userResumesTable).where(eq(userResumesTable.userID, userID))
+  return resume?.fileKey
+}
 
 async function getPublicJobListing(id: bigint) {
   const [jobListing] = await db
@@ -507,6 +532,19 @@ async function getUserResume(userID: bigint) {
     .select()
     .from(userResumesTable)
     .where(eq(userResumesTable.userID, userID))
+    .limit(1)
   if (userResume == null) return null
-  return userResume
+  const uri = await getSignedUrl(
+    r2,
+    new GetObjectCommand({
+      Bucket: env.R2_BUCKET_NAME,
+      Key: userResume.fileKey
+    }),
+    { expiresIn: 3600 }
+  )
+  return {
+    id: userResume.id,
+    summury: userResume.summury,
+    file: { uri }
+  }
 }

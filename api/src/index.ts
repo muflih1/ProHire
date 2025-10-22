@@ -3,6 +3,7 @@ import express from "express";
 import cors from "cors"
 import trpcRoutes from "./routes/trpc.route.js"
 import authRoutes from "./routes/auth.route.js"
+import uploadRoutes from "./routes/upload.route.js"
 import organizationRoutes from "./routes/organization.route.js"
 import type { appRouter } from "./trpc/routers/_app.js";
 import { errorHandler } from "./middlewares/error-handler.middleware.js";
@@ -23,7 +24,9 @@ app
 
 app.use('/api/auth', authRoutes)
 app.use('/api/organizations', organizationRoutes)
+app.use('/api/upload', uploadRoutes)
 app.use("/api/trpc", trpcRoutes);
+
 
 app.use(errorHandler)
 

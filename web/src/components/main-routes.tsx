@@ -3,16 +3,17 @@ import ProtectedRoute from './protected-route';
 import { lazy, Suspense } from 'react';
 import SeekerRootLayout from './seeker-root-layout';
 
-const Home = lazy(() => import('@/routes/home'));
-const ViewJob = lazy(() => import('@/routes/viewjob'));
-const Login = lazy(() => import('@/routes/login'));
-const Signup = lazy(() => import('@/routes/signup'));
+const Home = lazy(() => import('@/routes/(seeker)/home'));
+const ViewJob = lazy(() => import('@/routes/(seeker)/viewjob'));
+const Profile = lazy(() => import('@/routes/(seeker)/profile'));
+const Login = lazy(() => import('@/routes/(auth)/login'));
+const Signup = lazy(() => import('@/routes/(auth)/signup'));
 const EmployerRootLayout = lazy(() => import('./employer-root-layout'));
-const Employer = lazy(() => import('@/routes/employers'));
-const Posting = lazy(() => import('@/routes/employers/posting'));
-const JobListing = lazy(() => import('@/routes/employers/job-listings'));
-const JobListingEditing = lazy(() => import('@/routes/employers/editing'));
-const Pricing = lazy(() => import('@/routes/employers/pricing'));
+const Employer = lazy(() => import('@/routes/(employers)'));
+const Posting = lazy(() => import('@/routes/(employers)/posting'));
+const JobListing = lazy(() => import('@/routes/(employers)/job-listings'));
+const JobListingEditing = lazy(() => import('@/routes/(employers)/editing'));
+const Pricing = lazy(() => import('@/routes/(employers)/pricing'));
 
 export default function MainRoutes() {
   return (
@@ -21,6 +22,9 @@ export default function MainRoutes() {
         <Route element={<SeekerRootLayout />}>
           <Route index element={<Home />} />
           <Route path='viewjob/:jobListingID' element={<ViewJob />} />
+          <Route element={<ProtectedRoute requireAuth redirectURL='/login' />}>
+            <Route path='profile' element={<Profile />} />
+          </Route>
         </Route>
         <Route element={<ProtectedRoute requireAuth redirectURL='/login' />}>
           <Route path='/employers' element={<EmployerRootLayout />}>

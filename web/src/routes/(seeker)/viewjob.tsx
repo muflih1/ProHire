@@ -167,7 +167,7 @@ function EnsureResumeGuard(props: ApplyButtonProps) {
           <div className='grid mt-2'>
             <Button asChild>
               <Link
-                to={'/user-settings/resume'}
+                to={'/profile'}
                 state={{ from: location.pathname }}
               >
                 Upload resume
