@@ -2,9 +2,9 @@ import {
   formatExperienceLevel,
   formatJobLocationRequirement,
   formatJobType,
-  formatWageInPaise,
-} from '@/utils/formatters/job-listing';
-import { Badge } from './ui/badge';
+  formatWage,
+} from '@/features/job-listings/lib/formatters';
+import {Badge} from './ui/badge';
 import {
   BanknoteIcon,
   BuildingIcon,
@@ -26,7 +26,7 @@ export default function JobListingBadges({
     organizationID: bigint;
     title: string;
     description: string;
-    wageInPaise: number;
+    wageInPaise: number | null;
     wageInterval: string | null;
     streetAddress: string | null;
     locationRequirement: string;
@@ -41,14 +41,19 @@ export default function JobListingBadges({
 }) {
   return (
     <>
-      <Badge variant={'outline'}>
-        <BanknoteIcon />
-        {formatWageInPaise(jobListing.wageInPaise, jobListing.wageInterval as WageInterval)}
-      </Badge>
+      {jobListing.wageInPaise && (
+        <Badge variant={'outline'}>
+          <BanknoteIcon />
+          {formatWage(
+            jobListing.wageInPaise,
+            jobListing.wageInterval as WageInterval,
+          )}
+        </Badge>
+      )}
       <Badge variant={'outline'}>
         <BuildingIcon />
         {formatJobLocationRequirement(
-          jobListing.locationRequirement as JobLocationRequirement
+          jobListing.locationRequirement as JobLocationRequirement,
         )}
       </Badge>
       <Badge variant={'outline'}>

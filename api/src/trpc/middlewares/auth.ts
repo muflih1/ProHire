@@ -1,10 +1,10 @@
-import { TRPCError } from "@trpc/server";
-import { t } from "../init.js";
+import {TRPCError} from '@trpc/server';
+import {createTRPCMiddleware} from '../init.js';
 
-export const auth = t.middleware(({ ctx, next }) => {
+export const auth = createTRPCMiddleware(({ctx, next}) => {
   if (!ctx?.session || !ctx?.session?.userID) {
-    throw new TRPCError({ code: 'UNAUTHORIZED' })
+    throw new TRPCError({code: 'UNAUTHORIZED'});
   }
 
-  return next({ ctx })
-})
+  return next({ctx});
+});

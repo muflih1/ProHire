@@ -1,147 +1,232 @@
-import type { NumberLike } from "hashids/util";
-import { db } from "../db/index.js";
-import { sessionsTable, usersTable } from "../db/schema.js";
-import { getEnv } from "../env.js";
-import catchAsync from "../utils/catch-async.js";
-import crypto from "node:crypto"
-import assign from "object-assign"
-import { eq, type InferSelectModel } from "drizzle-orm";
-import { hashids } from "./hashids.js";
-import type { Response } from "express";
-import * as cookie from "cookie"
+import {and, eq, sql} from 'drizzle-orm';
+import {db} from '../db/index.js';
+import {sessionsTable, usersTable} from '../db/schema.js';
+import crypto from 'node:crypto';
+import {sqids} from './sqids.js';
+import {setCookie} from '../utils/request-response.js';
+import catchAsync from '../utils/catch-async.js';
+import type {SerializeOptions} from 'cookie';
 
-const SESSION_ROTATION_THRESHOLD_IN_SECONDS = 60 * 60 * 24 * 15
+const inactivityTimeoutSeconds = 60 * 60 * 24 * 10;
+const activityCheckIntervalSeconds = 60 * 60 * 24 * 1;
 
 function generateSecureRandomString(): string {
-  const alphabet = "abcdefghijkmnpqrstuvwxyz23456789";
+  return 'Ay' + crypto.randomBytes(24).toString('base64url').slice(0, 42);
+}
 
-  const bytes = new Uint8Array(44);
-  crypto.getRandomValues(bytes);
+async function getSessionId(userID: bigint) {
+  let a = false;
+  let id = crypto.randomInt(1, 50);
 
-  let id = "";
-  for (let i = 0; i < bytes.length; i++) {
-    id += alphabet[bytes[i]! >> 3];
-  }
+  do {
+    let [check] = await db
+      .select({1: sql<number>`1`})
+      .from(sessionsTable)
+      .where(
+        and(
+          eq(sessionsTable.id, id),
+          eq(sessionsTable.userID, userID),
+          eq(sessionsTable.created, Math.floor(Date.now() / 1000)),
+        ),
+      );
+    if (check != null) {
+      a = true;
+      id += 1;
+    } else {
+      a = false;
+    }
+  } while (a);
+
   return id;
 }
 
-export async function createSession(userID: bigint, userAgent?: string, ipAddress?: string, pool = db) {
-  const secret = generateSecureRandomString()
-  const secretHash = hashSecret(secret)
+async function createSession(
+  userID: bigint,
+  userAgent?: string | null,
+  ipAddress?: string | null,
+) {
+  const now = new Date();
 
-  const [session] = await pool
-    .insert(sessionsTable)
-    .values({
-      userID,
-      secret: secretHash,
-      userAgent,
-      ipAddress
-    })
-    .returning();
+  const id = await getSessionId(userID);
+  const rotatingToken = generateSecureRandomString();
+  const rotatingTokenDigest = hashSecret(rotatingToken);
+  const created = Math.floor(now.getTime() / 1000);
 
-  if (!session) {
-    throw new Error('Failed to create session');
-  }
+  const token = `${id}:${sqids.encode([created])}:${rotatingToken}`;
 
-  const token = hashids.encode(session.id) + '.' + secret
+  const session = {
+    id,
+    userID,
+    rotatingTokenDigest,
+    userAgent,
+    ipAddress,
+    created,
+    token,
+  };
 
-  return assign(session, { token })
+  await db.insert(sessionsTable).values(session);
+
+  return session;
 }
 
-function hashSecret(secret: string) {
-  return crypto.createHmac('sha256', getEnv("SESSION_SECRET")).update(secret).digest()
+function hashSecret(secret: string): Buffer<ArrayBuffer> {
+  return crypto.createHash('sha256').update(secret).digest();
 }
 
-async function validateSession(token: string) {
-  const tokenParts = token.split('.')
-  if (tokenParts.length !== 2) {
-    return null
+function constantTimeEqual(
+  a: Buffer<ArrayBuffer>,
+  b: Buffer<ArrayBuffer>,
+): boolean {
+  if (a.length !== b.length) {
+    return false;
   }
-  const [encodedSessionId, sessionSecret] = tokenParts as [string, string]
-  let [sessionId] = hashids.decode(encodedSessionId)
-  if (!sessionId) {
-    return null
-  }
-  const session = await getSession(sessionId)
-  if (!session) {
-    return null
-  }
-  const tokenSecretHash = hashSecret(sessionSecret)
-  const validSecret = constantTimeEqual(tokenSecretHash, session.secret)
-  if (!validSecret) {
-    return null
-  }
-  return session
+  return crypto.timingSafeEqual(a, b);
 }
 
-export async function getSession(sessionId: NumberLike) {
-  const now = new Date()
-  let [session] = await db
+async function getSession(sessionID: number, userID: bigint, created: number) {
+  const now = new Date();
+
+  const [session] = await db
     .select({
       id: sessionsTable.id,
       userID: usersTable.id,
-      secret: sessionsTable.secret,
-      userAgent: sessionsTable.userAgent,
-      ipAddress: sessionsTable.ipAddress,
-      expiresAt: sessionsTable.expiresAt,
-      createdAt: sessionsTable.createdAt,
-      updatedAt: sessionsTable.updatedAt
+      rotatingTokenDigest: sessionsTable.rotatingTokenDigest,
+      lastRotatedAt: sessionsTable.lastRotatedAt,
+      created: sessionsTable.created,
+      lastActiveOrganizationID: sessionsTable.lastActiveOrganizationID,
     })
     .from(sessionsTable)
     .innerJoin(usersTable, eq(usersTable.id, sessionsTable.userID))
-    .where(eq(sessionsTable.id, sessionId as bigint));
+    .where(
+      and(
+        eq(sessionsTable.id, sessionID),
+        eq(sessionsTable.userID, userID),
+        eq(sessionsTable.created, created),
+      ),
+    );
   if (!session) {
-    return null
+    return null;
   }
-  if (now.getTime() > session.expiresAt.getTime()) {
-    await deleteSession(session.id)
-    return null
+
+  if (
+    now.getTime() - session.lastRotatedAt.getTime() >=
+    inactivityTimeoutSeconds * 1000
+  ) {
+    await db
+      .delete(sessionsTable)
+      .where(
+        and(
+          eq(sessionsTable.id, sessionID),
+          eq(sessionsTable.userID, userID),
+          eq(sessionsTable.created, created),
+        ),
+      );
+    return null;
   }
-  if (session.expiresAt.getTime() - now.getTime() <= SESSION_ROTATION_THRESHOLD_IN_SECONDS * 1000) {
-    [session] = await db.update(sessionsTable).set({ expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30) }).returning()
-    if (!session) {
-      return null
-    }
-  }
-  return session
+
+  return session;
 }
 
-export async function deleteSession(sessionId: NumberLike) {
-  await db.delete(sessionsTable).where(eq(sessionsTable.id, sessionId as bigint))
-}
+async function validateSessionToken(token: string, userID: bigint) {
+  const now = new Date();
 
-function constantTimeEqual(a: Buffer<ArrayBufferLike>, b: Buffer<ArrayBufferLike>) {
-  return crypto.timingSafeEqual(a, b)
-}
-
-
-export const deserializeSession = catchAsync(async (req, res, next) => {
-  const token = req.cookies.session_secret
-  if (token) {
-    const session = await validateSession(token)
-    if (session) {
-      req.session = session
-    }
+  const tokenParts = token.split(':') as [string, string, string];
+  if (tokenParts.length !== 3) {
+    return null;
   }
-  next()
-})
+  const sessionId = parseInt(tokenParts[0]);
+  const [sessionCreatedAt] = sqids.decode(tokenParts[1]);
+  const sessionSecret = tokenParts[2];
 
-export function setSessionCookie(res: Response, value: string) {
-  const data = cookie.serialize("session_secret", value, {
+  if (sessionCreatedAt == null) {
+    return null;
+  }
+
+  const session = await getSession(sessionId, userID, sessionCreatedAt);
+  if (!session) {
+    return null;
+  }
+
+  const tokenSecretDigest = await hashSecret(sessionSecret);
+  const validSecret = constantTimeEqual(
+    tokenSecretDigest,
+    session.rotatingTokenDigest,
+  );
+  if (!validSecret) {
+    return null;
+  }
+
+  if (
+    now.getTime() - session.lastRotatedAt.getTime() >=
+    activityCheckIntervalSeconds * 1000
+  ) {
+    const newRotatingToken = generateSecureRandomString();
+    const newRotatingTokenDigest = hashSecret(newRotatingToken);
+
+    await db
+      .update(sessionsTable)
+      .set({rotatingTokenDigest: newRotatingTokenDigest, lastRotatedAt: now})
+      .where(
+        and(
+          eq(sessionsTable.id, sessionId),
+          eq(sessionsTable.userID, userID),
+          eq(sessionsTable.created, sessionCreatedAt),
+        ),
+      );
+
+    session.rotatingTokenDigest = newRotatingTokenDigest;
+    session.lastRotatedAt = now;
+
+    const newToken = `${session.id}:${sqids.encode([session.created])}:${newRotatingToken}`;
+    setCookie('sid', newToken, getSetSessionCookieOptions());
+    setCookie('uid', userID.toString(), getSetSessionCookieOptions());
+  }
+
+  return session;
+}
+
+function getSetSessionCookieOptions(): SerializeOptions {
+  return {
     path: '/',
     httpOnly: true,
     expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365),
-    secure: false,
-  })
-  const prev = res.getHeader('set-cookie') || []
-  const header = Array.isArray(prev) ? prev.concat(data) : [prev, data]
-  res.setHeader('set-cookie', header as readonly string[])
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+  };
 }
+
+const deserializeSession = catchAsync(async (req, res, next) => {
+  const sessionToken = req.cookies.sid;
+  const userID = req.cookies.uid;
+
+  if (sessionToken == null || userID == null) {
+    return next();
+  }
+
+  const session = await validateSessionToken(sessionToken, userID);
+  if (!session) return next();
+
+  req.session = {
+    id: session.id,
+    userID: session.userID,
+    created: session.created,
+    lastActiveOrganizationID: session.lastActiveOrganizationID,
+  };
+
+  return next();
+});
+
+export {deserializeSession, createSession, getSetSessionCookieOptions};
 
 declare global {
   namespace Express {
     interface Request {
-      session: InferSelectModel<typeof sessionsTable>
+      session: {
+        id: number;
+        userID: bigint;
+        created: number;
+        lastActiveOrganizationID: bigint | null;
+      };
     }
   }
 }

@@ -5,22 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1759916425279,
-      "tag": "0000_fair_bullseye",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1760092899539,
-      "tag": "0001_rare_masque",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1760300900628,
-      "tag": "0002_breezy_proemial_gods",
+      "when": 1775833249500,
+      "tag": "0000_flippant_justice",
       "breakpoints": true
     }
   ]

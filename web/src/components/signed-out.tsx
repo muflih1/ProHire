@@ -1,10 +1,9 @@
-import { useAuth } from '@/providers/auth-provider';
-import React from 'react';
+import {useUser} from '@/hooks/use-user';
 
-export default function SignedOut({ children }: React.PropsWithChildren) {
-  const user = useAuth();
+export default function SignedOut({children}: {children: React.ReactNode}) {
+  const {isLoading, isAuthenticated} = useUser();
 
-  if (user != null && user.id != null) return null;
+  if (isLoading || isAuthenticated) return null;
 
   return children;
 }

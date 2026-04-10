@@ -7,6 +7,6 @@ export const userRegistrationSchema = z.object({
 })
 
 export const userLoginSchema = z.object({
-  email: z.email().nonempty(),
+  email_address: z.email().nonempty(),
   password: z.string()
 })

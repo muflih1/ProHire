@@ -3,17 +3,17 @@ import ProtectedRoute from './protected-route';
 import { lazy, Suspense } from 'react';
 import SeekerRootLayout from './seeker-root-layout';
 
-const Home = lazy(() => import('@/routes/(seeker)/home'));
-const ViewJob = lazy(() => import('@/routes/(seeker)/viewjob'));
-const Profile = lazy(() => import('@/routes/(seeker)/profile'));
-const Login = lazy(() => import('@/routes/(auth)/login'));
-const Signup = lazy(() => import('@/routes/(auth)/signup'));
+const Home = lazy(() => import('@/components/(seeker)/home'));
+const ViewJob = lazy(() => import('@/components/(seeker)/viewjob'));
+const Profile = lazy(() => import('@/components/(seeker)/profile'));
+const Login = lazy(() => import('@/components/(auth)/login'));
+const Signup = lazy(() => import('@/components/(auth)/signup'));
 const EmployerRootLayout = lazy(() => import('./employer-root-layout'));
-const Employer = lazy(() => import('@/routes/(employers)'));
-const Posting = lazy(() => import('@/routes/(employers)/posting'));
-const JobListing = lazy(() => import('@/routes/(employers)/job-listings'));
-const JobListingEditing = lazy(() => import('@/routes/(employers)/editing'));
-const Pricing = lazy(() => import('@/routes/(employers)/pricing'));
+const Employer = lazy(() => import('@/components/(employers)'));
+const Posting = lazy(() => import('@/components/(employers)/posting'));
+const JobListing = lazy(() => import('@/components/(employers)/job-listings'));
+const JobListingEditing = lazy(() => import('@/components/(employers)/editing'));
+const Pricing = lazy(() => import('@/components/(employers)/pricing'));
 
 export default function MainRoutes() {
   return (
