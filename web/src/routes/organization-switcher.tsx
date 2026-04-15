@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {Flexbox} from '@/components/ui/flexbox';
 import {
   Form,
   FormControl,
@@ -62,7 +63,12 @@ function OrganizationSwitcher() {
   );
 
   return (
-    <div className='flex flex-col h-screen items-center justify-center'>
+    <Flexbox
+      direction='column'
+      alignItems='center'
+      justifyContent='center'
+      className='h-screen'
+    >
       <Card className='max-w-100 w-full'>
         <CardHeader className='place-items-center'>
           <CardTitle className='text-lg font-bold'>
@@ -113,7 +119,7 @@ function OrganizationSwitcher() {
         open={createOrganizationDialogOpen}
         onOpenChange={setCreateOrganizationDialogOpen}
       />
-    </div>
+    </Flexbox>
   );
 }
 

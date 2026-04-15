@@ -1,4 +1,4 @@
-import {eq, sql, asc, and, or, isNull, gt} from 'drizzle-orm';
+import {eq, sql, asc, and, or} from 'drizzle-orm';
 import {authorizedProcedure, createTRPCRouter} from '../init.js';
 import {
   featuresTable,
@@ -59,7 +59,7 @@ export const billingsRouter = createTRPCRouter({
       )
       .where(eq(plansTable.publiclyVisible, true))
       .groupBy(plansTable.id)
-      .orderBy(asc(plansTable.id));
+      .orderBy(asc(plansTable.amountInPaise));
 
     return plans;
   }),
@@ -87,7 +87,7 @@ export const billingsRouter = createTRPCRouter({
       if (existing) {
         await ctx.db
           .update(organizationSubscriptionsTable)
-          .set({status: 'canceled', canceledAt: new Date()})
+          .set({status: 'ended', endedAt: new Date()})
           .where(and(eq(organizationSubscriptionsTable.id, existing.id)));
       }
       const amount =
@@ -128,7 +128,7 @@ export const billingsRouter = createTRPCRouter({
         payment_intent_data: {
           setup_future_usage: 'off_session',
         },
-        success_url: 'http://localhost:5173/employer',
+        success_url: 'http://localhost:5173/employer/pricing',
         cancel_url: 'http://localhost:5173/employer/pricing',
         metadata: {
           organizationID: orgID.toString(),
@@ -144,38 +144,6 @@ export const billingsRouter = createTRPCRouter({
     {permission: 'org:billing:read'},
     "You don't have permission",
   ).query(async ({ctx, input}) => {
-    // const subscriptions = await ctx.db
-    //   .select({
-    //     id: organizationSubscriptionsTable.id,
-    //     status: organizationSubscriptionsTable.status,
-    //     planID: organizationSubscriptionsTable.planID,
-    //     planPeriod: organizationSubscriptionsTable.planPeriod,
-    //     currentPeriodStart: organizationSubscriptionsTable.currentPeriodStart,
-    //     currentPeriodEnd: organizationSubscriptionsTable.currentPeriodEnd,
-    //     canceledAt: organizationSubscriptionsTable.canceledAt,
-    //     pastDueAt: organizationSubscriptionsTable.pastDueAt,
-    //     endedAt: organizationSubscriptionsTable.endedAt,
-    //     createdAt: organizationSubscriptionsTable.createdAt,
-    //     updatedAt: organizationSubscriptionsTable.updatedAt,
-    //   })
-    //   .from(organizationSubscriptionsTable)
-    //   .where(
-    //     and(
-    //       eq(
-    //         organizationSubscriptionsTable.organizationID,
-    //         ctx.organization.id,
-    //       ),
-    //       or(
-    //         eq(organizationSubscriptionsTable.status, 'active'),
-    //         eq(organizationSubscriptionsTable.status, 'upcoming'),
-    //       ),
-    //       or(
-    //         isNull(organizationSubscriptionsTable.canceledAt),
-    //         gt(organizationSubscriptionsTable.canceledAt, new Date()),
-    //       ),
-    //     ),
-    //   );
-
     const subscriptions =
       await ctx.db.query.organizationSubscriptionsTable.findMany({
         where: and(
@@ -187,16 +155,12 @@ export const billingsRouter = createTRPCRouter({
             eq(organizationSubscriptionsTable.status, 'active'),
             eq(organizationSubscriptionsTable.status, 'upcoming'),
           ),
-          or(
-            isNull(organizationSubscriptionsTable.canceledAt),
-            gt(organizationSubscriptionsTable.canceledAt, new Date()),
-          ),
         ),
         columns: {
           organizationID: false,
           currency: false,
           amount: false,
-          cancelAtPeriodEnd: false
+          cancelAtPeriodEnd: false,
         },
       });
 

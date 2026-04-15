@@ -3,7 +3,7 @@
     "target": "es2022",
     "useDefineForClassFields": true,
     "module": "esnext",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "lib": ["ES2022", "DOM", "DOM.Iterable", "ES2024.Object"],
     "skipLibCheck": true,
 
     /* Bundler mode */

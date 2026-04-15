@@ -6,7 +6,7 @@ import {QueryClientProvider} from '@tanstack/react-query';
 import {TRPCProvider} from './utils/trpc';
 import {createTRPCOptionsProxy} from '@trpc/tanstack-react-query';
 import {trpcClient} from './utils/trpc-client';
-import type {AppRouter} from '../../api/src';
+import type {AppRouter} from '../../packages/api/src';
 
 // Create a new router instance
 

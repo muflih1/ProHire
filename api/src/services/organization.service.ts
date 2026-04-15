@@ -11,6 +11,10 @@ import {
   rolePermissionsTable,
   rolesTable,
 } from '../db/schema.js';
+import {
+  checkAuthorization,
+  CheckAuthorizationParams,
+} from '../utils/check-authorization.js';
 
 export async function getCurrentOrganization(
   userID: bigint,
@@ -107,5 +111,10 @@ export async function getCurrentOrganization(
     )
     .limit(1);
 
-  return organization ?? null;
+  function has(params: CheckAuthorizationParams) {
+    if (!organization) return false;
+    return checkAuthorization(params, organization);
+  }
+
+  return {organization: organization ?? null, has};
 }

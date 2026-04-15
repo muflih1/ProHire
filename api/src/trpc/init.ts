@@ -1,25 +1,24 @@
 import {initTRPC, TRPCError} from '@trpc/server';
-import type {Context} from './context.js';
 import superjson from 'superjson';
-import {
-  checkAuthorization,
-  CheckAuthorizationParams,
-} from '../utils/check-authorization.js';
 import {getCurrentOrganization} from '../services/organization.service.js';
+import type {Context} from './context.js';
+import type {CheckAuthorizationParams} from '../utils/check-authorization.js';
 
-const t = initTRPC.context<Context>().create({
-  errorFormatter: ({shape, error}) => {
-    console.log('[TRPC]', error)
-    return {
-      ...shape,
-      message:
-        error.code === 'INTERNAL_SERVER_ERROR'
-          ? 'Internal server error'
-          : error.message,
-    };
-  },
-  transformer: superjson,
-});
+const t = initTRPC
+  .context<Context>()
+  .create({
+    errorFormatter: ({shape, error}) => {
+      console.log('[TRPC]', error);
+      return {
+        ...shape,
+        message:
+          error.code === 'INTERNAL_SERVER_ERROR'
+            ? 'Internal server error'
+            : error.message,
+      };
+    },
+    transformer: superjson,
+  });
 
 export const createTRPCRouter = t.router;
 export const createTRPCMiddleware = t.middleware;
@@ -42,7 +41,7 @@ export const authorizedProcedure = (
         throw new TRPCError({code: 'UNAUTHORIZED'});
       }
 
-      const organization = await getCurrentOrganization(
+      const {organization, has} = await getCurrentOrganization(
         ctx.session.userID,
         orgID,
       );
@@ -51,7 +50,7 @@ export const authorizedProcedure = (
         throw new TRPCError({code: 'UNAUTHORIZED'});
       }
 
-      if (!checkAuthorization(params, organization)) {
+      if (!has(params)) {
         throw new TRPCError({code: 'FORBIDDEN', message});
       }
 

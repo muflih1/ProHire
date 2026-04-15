@@ -5,7 +5,7 @@ import {
   CameraIcon,
   ContactRoundIcon,
   MailIcon,
-  RectangleEllipsisIcon,
+  ShieldIcon,
 } from 'lucide-react';
 
 export const Route = createFileRoute('/(job-seeker)/_layout/personal-info')({
@@ -97,12 +97,12 @@ function PersonalInfoRoute() {
             className='flex items-center select-none bg-secondary rounded-t rounded-b-xl py-3 px-4 text gap-3 min-h-15'
           >
             <div className='flex flex-row item-center justify-center gap-2 5 shrink-0 w-10'>
-              <RectangleEllipsisIcon size={24} className='shrink-0' />
+              <ShieldIcon size={24} className='shrink-0' />
             </div>
             <div className='grow shrink flex flex-col justify-center overflow-hidden'>
               <div>
                 <span className='text-base font-medium leading-normal tracking-0 text-secondary-foreground'>
-                  Password
+                  Password &amp; Security
                 </span>
               </div>
             </div>

@@ -83,14 +83,16 @@ export const organizationsRouter = createTRPCRouter({
       throw new TRPCError({code: 'UNAUTHORIZED'});
     }
 
-    const organization = await getCurrentOrganization(
+    const {organization} = await getCurrentOrganization(
       ctx.session.userID,
       orgID,
     );
 
-    console.log({organization})
+    if (!organization) {
+      throw new TRPCError({code: 'NOT_FOUND'});
+    }
 
-    return omit(organization!, ['_stripeCustomerID']);
+    return omit(organization, ['_stripeCustomerID']);
   }),
 
   list: protectedProcedure.query(async ({ctx}) => {

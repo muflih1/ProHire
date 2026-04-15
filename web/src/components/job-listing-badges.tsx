@@ -17,9 +17,11 @@ import type {
   JobType,
   WageInterval,
 } from '@/constants/job-listing';
+import {cn} from '@/lib/utils';
 
 export default function JobListingBadges({
   jobListing,
+  className,
 }: {
   jobListing: {
     id: bigint;
@@ -31,6 +33,7 @@ export default function JobListingBadges({
     streetAddress: string | null;
     locationRequirement: string;
     experienceLevel: string | null;
+    isFeatured: boolean;
     openings: number;
     status: string | null;
     type: string | null;
@@ -38,11 +41,23 @@ export default function JobListingBadges({
     createdAt: Date;
     updatedAt: Date;
   };
+  className?: string;
 }) {
   return (
     <>
+      {jobListing.isFeatured && (
+        <Badge
+          variant='outline'
+          className={cn(
+            className,
+            'border-featured bg-featured/50 text-featured-foreground',
+          )}
+        >
+          Featured
+        </Badge>
+      )}
       {jobListing.wageInPaise && (
-        <Badge variant={'outline'}>
+        <Badge variant='outline'>
           <BanknoteIcon />
           {formatWage(
             jobListing.wageInPaise,
@@ -50,17 +65,17 @@ export default function JobListingBadges({
           )}
         </Badge>
       )}
-      <Badge variant={'outline'}>
+      <Badge variant='outline'>
         <BuildingIcon />
         {formatJobLocationRequirement(
           jobListing.locationRequirement as JobLocationRequirement,
         )}
       </Badge>
-      <Badge variant={'outline'}>
+      <Badge variant='outline'>
         <HourglassIcon />
         {formatJobType(jobListing.type as JobType)}
       </Badge>
-      <Badge variant={'outline'}>
+      <Badge variant='outline'>
         <GraduationCapIcon />
         {formatExperienceLevel(jobListing.experienceLevel as ExperienceLevel)}
       </Badge>

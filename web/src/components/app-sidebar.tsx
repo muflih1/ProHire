@@ -11,6 +11,7 @@ import {
   SidebarTrigger,
 } from '@/components/ui/sidebar';
 import React from 'react';
+import {Flexbox} from './ui/flexbox';
 
 export function AppSidebar({
   children,
@@ -24,7 +25,7 @@ export function AppSidebar({
   return (
     <SidebarProvider>
       <Sidebar variant='sidebar' collapsible='icon' className='overflow-hidden'>
-        <SidebarHeader className='flex flex-row'>
+        <SidebarHeader render={<Flexbox direction='row' />}>
           <SidebarTrigger />
           <span className='text-xl text-nowrap'>Job Board</span>
         </SidebarHeader>

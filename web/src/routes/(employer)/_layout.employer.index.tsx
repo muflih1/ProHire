@@ -3,7 +3,7 @@ import {createFileRoute} from '@tanstack/react-router';
 export const Route = createFileRoute('/(employer)/_layout/employer/')({
   beforeLoad: async ({context}) => {
     const jobListing = await context.queryClient.fetchQuery(
-      context.trpc.jobListings.mostRecent.queryOptions(),
+      context.trpc.jobListings.getMostRecent.queryOptions(),
     );
 
     if (jobListing == null) {

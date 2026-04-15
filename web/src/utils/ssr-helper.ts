@@ -1,6 +1,6 @@
 import { createTRPCClient, httpBatchLink } from "@trpc/client";
 import { createServerSideHelpers } from "@trpc/react-query/server"
-import { AppRouter } from "../../../api/src";
+import { AppRouter } from "../../../packages/api/src";
 import superjson from "superjson"
 
 export function createTRPCSSRHelpers(req: any) {

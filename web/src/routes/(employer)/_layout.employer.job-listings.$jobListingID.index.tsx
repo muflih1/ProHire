@@ -1,18 +1,35 @@
 import {Has} from '@/components/has';
 import {If} from '@/components/if';
 import JobListingBadges from '@/components/job-listing-badges';
+import {LoadingSwap} from '@/components/loading-swap';
 import {Badge} from '@/components/ui/badge';
 import {Button} from '@/components/ui/button';
+import {Flexbox} from '@/components/ui/flexbox';
 import {Popover, PopoverContent, PopoverTrigger} from '@/components/ui/popover';
 import {JobListingStatus} from '@/constants/job-listing';
 import {formatJobStatus} from '@/features/job-listings/lib/formatters';
 import {getNextJobListingStatus} from '@/features/job-listings/lib/utils';
 import {useCurrentOrganization} from '@/features/organizations/hooks/use-current-organization';
+import useConfirm from '@/hooks/use-confirm';
 import {useTRPC} from '@/utils/trpc';
-import {useQuery, useSuspenseQuery} from '@tanstack/react-query';
-import {createFileRoute, Link} from '@tanstack/react-router';
-import {EditIcon, EyeIcon, EyeOffIcon} from 'lucide-react';
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  useSuspenseQuery,
+} from '@tanstack/react-query';
+import {createFileRoute, Link, useNavigate} from '@tanstack/react-router';
+import {
+  EditIcon,
+  EyeIcon,
+  EyeOffIcon,
+  StarIcon,
+  StarOffIcon,
+  Trash2Icon,
+} from 'lucide-react';
+import React from 'react';
 import Markdown from 'react-markdown';
+import {toast} from 'sonner';
 
 export const Route = createFileRoute(
   '/(employer)/_layout/employer/job-listings/$jobListingID/',
@@ -29,99 +46,291 @@ export const Route = createFileRoute(
 
 function JobListingRoute() {
   const jobListingID = Route.useParams({select: params => params.jobListingID});
+  const navigate = useNavigate();
+  const [ConfirmationDialog, confirm] = useConfirm(
+    'Are you sure?',
+    'This will permanently delete the job listing and cannot be undone.',
+  );
   const trpc = useTRPC();
+  const queryClient = useQueryClient();
+
   const {data: jobListing} = useSuspenseQuery(
     trpc.jobListings.get.queryOptions({jobListingID}),
+  );
+
+  const {mutate: deleteJobListingMutationSync, isPending} = useMutation(
+    trpc.jobListings.delete.mutationOptions({
+      onSuccess: () => {
+        queryClient.removeQueries(
+          trpc.jobListings.get.queryOptions({jobListingID}),
+        );
+        navigate({to: '/employer', replace: true});
+      },
+      onError: error => {
+        toast.error(error.message);
+      },
+    }),
   );
 
   if (!jobListing) return '404 Not found';
 
   return (
-    <div className='space-y-6 max-w-6xl mx-auto p-4 @container'>
-      <div className='flex items-center justify-between gap-4 @max-4xl:flex-col @max-4xl:items-start'>
-        <div>
-          <h1 className='text-2xl font-bold tracking-tight'>
-            {jobListing.title}
-          </h1>
-          <div className='flex flex-wrap gap-2 mt-2'>
-            <Badge>
-              {formatJobStatus(jobListing.status as JobListingStatus)}
-            </Badge>
-            <JobListingBadges jobListing={jobListing} />
+    <>
+      <div className='space-y-6 max-w-6xl mx-auto p-4 @container'>
+        <Flexbox
+          alignItems='center'
+          justifyContent='between'
+          gap={4}
+          className='@max-4xl:flex-col @max-4xl:items-start'
+        >
+          <div>
+            <h1 className='text-2xl font-bold tracking-tight'>
+              {jobListing.title}
+            </h1>
+            <Flexbox wrap='wrap' gap={2} className='mt-2'>
+              <Badge>
+                {formatJobStatus(jobListing.status as JobListingStatus)}
+              </Badge>
+              <JobListingBadges jobListing={jobListing} />
+            </Flexbox>
           </div>
-        </div>
-        <div className='flex items-center gap-2 empty:contents'>
-          <Has permission='org:job_listing:update'>
-            <Button
-              variant={'outline'}
-              render={
-                <Link
-                  to='/employer/job-listings/$jobListingID/edit'
-                  params={{jobListingID: jobListing.id.toString()}}
-                />
-              }
-              nativeButton={false}
-            >
-              <EditIcon size={16} />
-              Edit
-            </Button>
-          </Has>
-          <StatusUpdateButton status={jobListing.status as JobListingStatus} />
-          {/* {has(PERMISSIONS.ORG_JOB_LISTING_CHANGE_STATUS) && (
-            <UpdateJobListingStatusButton
+          <Flexbox alignItems='center' gap={2} className='empty:contents'>
+            <Has permission='org:job_listing:update'>
+              <Button
+                variant={'outline'}
+                render={
+                  <Link
+                    to='/employer/job-listings/$jobListingID/edit'
+                    params={{jobListingID: jobListing.id.toString()}}
+                  />
+                }
+                nativeButton={false}
+              >
+                <EditIcon size={16} />
+                Edit
+              </Button>
+            </Has>
+            <StatusUpdateButton
               status={jobListing.status as JobListingStatus}
-              id={jobListing.id.toString()}
+              id={jobListing.id}
             />
-          )}
+            {jobListing.status === 'PUBLISHED' && (
+              <FeaturedToggleButton
+                isFeatured={jobListing.isFeatured}
+                id={jobListing.id}
+              />
+            )}
+            <Button
+              variant='destructive'
+              onClick={async () => {
+                if (!(await confirm())) return;
+                deleteJobListingMutationSync({id: jobListing.id});
+              }}
+            >
+              <LoadingSwap
+                isLoading={isPending}
+                className='flex items-center gap-1.5'
+              >
+                <Trash2Icon size={16} />
+                Delete
+              </LoadingSwap>
+            </Button>
+            {/*
           {has(PERMISSIONS.ORG_JOB_LISTING_DELETE) && (
             <DeleteJobListingButton jobListingID={jobListing.id} />
-          )}  */}
+            )}  */}
+          </Flexbox>
+        </Flexbox>
+        <div className='prose dark:prose-invert'>
+          <Markdown>{jobListing.description}</Markdown>
         </div>
       </div>
-      <div className='prose dark:prose-invert'>
-        <Markdown>{jobListing.description}</Markdown>
-      </div>
-    </div>
+      <ConfirmationDialog actionButtonProps={{variant: 'destructive'}} />
+    </>
   );
 }
 
-function StatusUpdateButton({status}: {status: JobListingStatus}) {
+function StatusUpdateButton({
+  status,
+  id,
+}: {
+  status: JobListingStatus;
+  id: bigint;
+}) {
   const {has} = useCurrentOrganization();
-  const isMaxed = useHasReachedMaxJobListings();
-  const button = <Button variant='outline'>Toggle</Button>;
+  const isMaxed = useReachedMaxPublishedJobListings();
+  const [ConfirmationDialog, confirm] = useConfirm(
+    'Are you sure?',
+    'This will immediately show this job listing to all users.',
+  );
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+
+  const {mutate: toggleJobListingStatusMutationSync, isPending} = useMutation(
+    trpc.jobListings.toggleStatus.mutationOptions({
+      onError: error => {
+        toast.error(error.message);
+      },
+      onSuccess: data => {
+        if (data.ok) {
+          queryClient.setQueryData(
+            trpc.jobListings.get.queryKey({jobListingID: id.toString()}),
+            jobListing => {
+              if (!jobListing) return jobListing;
+              return {...jobListing, status: data.status as JobListingStatus};
+            },
+          );
+        }
+      },
+    }),
+  );
+
+  const button = (
+    <Button
+      variant='outline'
+      onClick={async () => {
+        if (getNextJobListingStatus(status) === 'PUBLISHED') {
+          const ok = await confirm();
+          if (!ok) return;
+          toggleJobListingStatusMutationSync({jobListingID: id});
+        } else {
+          toggleJobListingStatusMutationSync({jobListingID: id});
+        }
+      }}
+    >
+      <LoadingSwap isLoading={isPending} className='flex items-center gap-2'>
+        {statusToggleButtonText(status)}
+      </LoadingSwap>
+    </Button>
+  );
+
+  return (
+    <>
+      <If condition={has({permission: 'org:job_listing:change_status'})}>
+        {getNextJobListingStatus(status) === 'PUBLISHED' ? (
+          <If
+            condition={!isMaxed}
+            otherwise={
+              <UpgradePlanPopover
+                triggerLabel={status}
+                popoverContent='You must upgrade your plan to publish more job listings.'
+              />
+            }
+          >
+            {button}
+          </If>
+        ) : (
+          button
+        )}
+      </If>
+      <ConfirmationDialog />
+    </>
+  );
+}
+
+function FeaturedToggleButton({
+  isFeatured,
+  id,
+}: {
+  isFeatured: boolean;
+  id: bigint;
+}) {
+  const {has} = useCurrentOrganization();
+  const isMaxed = useReachedMaxFeaturedJobListings();
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+
+  const {mutate: toggleJobListingFeaturedMutationSync, isPending} = useMutation(
+    trpc.jobListings.toggleFeatured.mutationOptions({
+      onError: error => {
+        toast.error(error.message);
+      },
+      onSuccess: data => {
+        if (data.ok) {
+          queryClient.setQueryData(
+            trpc.jobListings.get.queryKey({jobListingID: id.toString()}),
+            jobListing => {
+              if (!jobListing) return jobListing;
+              return {...jobListing, isFeatured: data.isFeatured};
+            },
+          );
+        }
+      },
+    }),
+  );
+
+  const button = (
+    <Button
+      variant='outline'
+      onClick={() => toggleJobListingFeaturedMutationSync({jobListingID: id})}
+    >
+      <LoadingSwap isLoading={isPending} className='flex items-center gap-2'>
+        {featuredToggleButtonText(isFeatured)}
+      </LoadingSwap>
+    </Button>
+  );
 
   return (
     <If condition={has({permission: 'org:job_listing:change_status'})}>
-      {getNextJobListingStatus(status) === 'PUBLISHED' ? (
+      {isFeatured ? (
+        button
+      ) : (
         <If
           condition={!isMaxed}
           otherwise={
-            <Popover>
-              <PopoverTrigger render={<Button variant='outline' />}>
-                {statusToggleButtonText(status)}
-              </PopoverTrigger>
-              <PopoverContent className='flex flex-col gap-2'>
-                You must upgrade your plan to publish more job listings.
-                <Button
-                  render={<Route.Link to='/employer/pricing' />}
-                  nativeButton={false}
-                >
-                  Upgrade Plan
-                </Button>
-              </PopoverContent>
-            </Popover>
+            <UpgradePlanPopover
+              triggerLabel={featuredToggleButtonText(isFeatured)}
+              popoverContent='You must upgrade your plan to feature more job listings.'
+            />
           }
         >
           {button}
         </If>
-      ) : (
-        button
       )}
     </If>
   );
 }
 
-function useHasReachedMaxJobListings() {
+function UpgradePlanPopover({
+  triggerLabel,
+  popoverContent,
+}: {
+  triggerLabel: React.ReactNode;
+  popoverContent: React.ReactNode;
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger render={<Button variant='outline' />}>
+        {triggerLabel}
+      </PopoverTrigger>
+      <PopoverContent className='flex flex-col gap-2'>
+        {popoverContent}
+        <Button
+          render={<Route.Link to='/employer/pricing' />}
+          nativeButton={false}
+        >
+          Upgrade Plan
+        </Button>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function useReachedMaxFeaturedJobListings() {
+  const {has} = useCurrentOrganization();
+  const trpc = useTRPC();
+
+  const {data} = useQuery(trpc.jobListings.getFeaturedCount.queryOptions());
+
+  if (data == null) return false;
+
+  return !(
+    (has({feature: '1_featured_job_listing'}) && data.count < 1) ||
+    has({feature: 'unlimited_featured_job_listings'})
+  );
+}
+
+function useReachedMaxPublishedJobListings() {
   const {has} = useCurrentOrganization();
   const trpc = useTRPC();
 
@@ -156,6 +365,20 @@ function statusToggleButtonText(status: JobListingStatus) {
     default:
       throw new Error(`Unkown status: ${status satisfies never}`);
   }
+}
+
+function featuredToggleButtonText(isFeatured: boolean) {
+  return isFeatured ? (
+    <>
+      <StarOffIcon size={16} />
+      Un Feature
+    </>
+  ) : (
+    <>
+      <StarIcon size={16} />
+      Feature
+    </>
+  );
 }
 
 // type UpdateJobListingStatusButtonProps = {

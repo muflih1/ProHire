@@ -89,7 +89,7 @@ export const usersTable = pgTable('users', {
   lastSignInAt: timestamp('last_sign_in_at').notNull().defaultNow(),
   banned: boolean('banned').notNull().default(false),
   locked: boolean('locked').notNull().default(false),
-  createdAt: timestamp('created_at', {withTimezone: true})
+  createdAt: timestamp('created_at', {precision: 6, withTimezone: true})
     .notNull()
     .defaultNow(),
   updatedAt: timestamp('updated_at', {withTimezone: true})
@@ -139,7 +139,7 @@ export const externalAccountsTable = pgTable(
     refreshTokenExpiresAt: timestamp('refresh_token_expires_at', {
       withTimezone: true,
     }),
-    createdAt: timestamp('created_at', {withTimezone: true})
+    createdAt: timestamp('created_at', {precision: 6, withTimezone: true})
       .notNull()
       .defaultNow(),
     updatedAt: timestamp('updated_at', {withTimezone: true})
@@ -205,7 +205,7 @@ export const rolesTable = pgTable('roles', {
   name: text('name').notNull(),
   key: text('key').notNull().unique(),
   description: text('description'),
-  createdAt: timestamp('created_at', {withTimezone: true})
+  createdAt: timestamp('created_at', {precision: 6, withTimezone: true})
     .notNull()
     .defaultNow(),
   updatedAt: timestamp('updated_at', {withTimezone: true})
@@ -223,7 +223,7 @@ export const permissionsTable = pgTable('permissions', {
     .primaryKey()
     .$defaultFn(() => snowflake.nextId()),
   key: varchar('key', {length: 64}).notNull().unique(),
-  createdAt: timestamp('created_at', {withTimezone: true})
+  createdAt: timestamp('created_at', {precision: 6, withTimezone: true})
     .notNull()
     .defaultNow(),
   updatedAt: timestamp('updated_at', {withTimezone: true})
@@ -248,7 +248,7 @@ export const rolePermissionsTable = pgTable(
     permissionID: bigint('permission_id', {mode: 'bigint'})
       .notNull()
       .references(() => permissionsTable.id, {onDelete: 'cascade'}),
-    createdAt: timestamp('created_at', {withTimezone: true})
+    createdAt: timestamp('created_at', {precision: 6, withTimezone: true})
       .notNull()
       .defaultNow(),
     updatedAt: timestamp('updated_at', {withTimezone: true})
@@ -283,7 +283,7 @@ export const organizationsTable = pgTable(
     slug: text('slug').notNull().unique(),
     profileImageStorageKey: text('profile_image_storage_key'),
     stripeCustomerID: text('stripe_customer_id'),
-    createdAt: timestamp('created_at', {withTimezone: true})
+    createdAt: timestamp('created_at', {precision: 6, withTimezone: true})
       .notNull()
       .defaultNow(),
     updatedAt: timestamp('updated_at', {withTimezone: true})
@@ -316,7 +316,7 @@ export const organizationMembershipsTable = pgTable(
     roleID: bigint('role_id', {mode: 'bigint'})
       .notNull()
       .references(() => rolesTable.id, {onDelete: 'set default'}),
-    createdAt: timestamp('created_at', {withTimezone: true})
+    createdAt: timestamp('created_at', {precision: 6, withTimezone: true})
       .notNull()
       .defaultNow(),
     updatedAt: timestamp('updated_at', {withTimezone: true})
@@ -344,6 +344,9 @@ export const organizationMembershipsRelations = relations(
   }),
 );
 
+export const jobListingStatusEnum = ['DRAFT', 'PUBLISHED', 'UNLISTED'] as const;
+export type JobListingStatus = (typeof jobListingStatusEnum)[number];
+
 export const jobListingsTable = pgTable('job_listings', {
   id: bigint({mode: 'bigint'})
     .primaryKey()
@@ -359,10 +362,13 @@ export const jobListingsTable = pgTable('job_listings', {
   locationRequirement: varchar('location_requirement', {length: 50}).notNull(),
   experienceLevel: varchar('experience_level', {length: 50}),
   openings: integer().notNull(),
-  status: varchar({length: 50}).default('DRAFT'),
+  status: varchar({length: 50, enum: jobListingStatusEnum})
+    .notNull()
+    .default('DRAFT'),
   type: varchar({length: 50}),
+  isFeatured: boolean('is_featured').notNull().default(false),
   postedAt: timestamp({withTimezone: true}),
-  createdAt: timestamp('created_at', {withTimezone: true})
+  createdAt: timestamp('created_at', {precision: 6, withTimezone: true})
     .notNull()
     .defaultNow(),
   updatedAt: timestamp('updated_at', {withTimezone: true})
@@ -377,7 +383,10 @@ export const skillsTable = pgTable('skills', {
     .$defaultFn(() => snowflake.nextId()),
   name: varchar({length: 100}).notNull().unique(),
   description: text(),
-  createdAt: timestamp('created_at', {withTimezone: true}).defaultNow(),
+  createdAt: timestamp('created_at', {
+    precision: 6,
+    withTimezone: true,
+  }).defaultNow(),
   updatedAt: timestamp('updated_at', {withTimezone: true})
     .defaultNow()
     .$onUpdate(() => new Date()),
@@ -411,7 +420,7 @@ export const jobListingApplicationsTable = pgTable(
     coverLetter: varchar('cover_letter', {length: 400}),
     rating: integer(),
     stage: varchar({length: 50}).default('APPLIED'),
-    createdAt: timestamp('created_at', {withTimezone: true})
+    createdAt: timestamp('created_at', {precision: 6, withTimezone: true})
       .notNull()
       .defaultNow(),
     updatedAt: timestamp('updated_at', {withTimezone: true})
@@ -432,7 +441,7 @@ export const userResumesTable = pgTable('user_resumes', {
     .references(() => usersTable.id, {onDelete: 'cascade'}),
   fileStorageKey: varchar('file_storage_key', {length: 255}).notNull(),
   summury: text(),
-  createdAt: timestamp('created_at', {withTimezone: true})
+  createdAt: timestamp('created_at', {precision: 6, withTimezone: true})
     .notNull()
     .defaultNow(),
   updatedAt: timestamp('updated_at', {withTimezone: true})
@@ -461,7 +470,10 @@ export const plansTable = pgTable(
     freeTrialEnabled: boolean('free_trial_enabled').notNull().default(false),
     freeTrialDays: integer('free_trial_days'),
     isDefault: boolean('is_default').notNull().default(false),
-    createdAt: timestamp('created_at', {withTimezone: true}).defaultNow(),
+    createdAt: timestamp('created_at', {
+      precision: 6,
+      withTimezone: true,
+    }).defaultNow(),
     updatedAt: timestamp('updated_at', {withTimezone: true})
       .defaultNow()
       .$onUpdate(() => new Date()),
@@ -481,7 +493,10 @@ export const featuresTable = pgTable('features', {
   key: varchar('key', {length: 64}).notNull().unique(),
   description: text('description'),
   publiclyVisible: boolean('publicly_visible').default(true),
-  createdAt: timestamp('created_at', {withTimezone: true}).defaultNow(),
+  createdAt: timestamp('created_at', {
+    precision: 6,
+    withTimezone: true,
+  }).defaultNow(),
   updatedAt: timestamp('updated_at', {withTimezone: true})
     .defaultNow()
     .$onUpdate(() => new Date()),
@@ -499,7 +514,10 @@ export const planFeaturesTable = pgTable(
     featureID: bigint('feature_id', {mode: 'bigint'})
       .notNull()
       .references(() => featuresTable.id, {onDelete: 'cascade'}),
-    createdAt: timestamp('created_at', {withTimezone: true}).defaultNow(),
+    createdAt: timestamp('created_at', {
+      precision: 6,
+      withTimezone: true,
+    }).defaultNow(),
     updatedAt: timestamp('updated_at', {withTimezone: true})
       .defaultNow()
       .$onUpdate(() => new Date()),
@@ -523,7 +541,7 @@ export const organizationSubscriptionsTable = pgTable(
     amount: integer('amount').notNull(),
     currency: text('currency').notNull().default('INR'),
     status: text('status', {
-      enum: ['upcoming', 'active', 'trialing', 'past_due', 'canceled'],
+      enum: ['upcoming', 'active', 'trialing', 'past_due', 'canceled', 'ended'],
     }).notNull(),
     currentPeriodStart: timestamp('current_period_start', {
       withTimezone: true,
@@ -535,7 +553,10 @@ export const organizationSubscriptionsTable = pgTable(
     canceledAt: timestamp('canceled_at', {withTimezone: true}),
     pastDueAt: timestamp('past_due_at', {withTimezone: true}),
     endedAt: timestamp('ended_at', {withTimezone: true}),
-    createdAt: timestamp('created_at', {withTimezone: true}).defaultNow(),
+    createdAt: timestamp('created_at', {
+      precision: 6,
+      withTimezone: true,
+    }).defaultNow(),
     updatedAt: timestamp('updated_at', {withTimezone: true})
       .defaultNow()
       .$onUpdate(() => new Date()),
@@ -566,7 +587,10 @@ export const organizationPaymentsTable = pgTable('organization_payments', {
   provider: varchar('provider', {length: 50}).default('STRIPE'),
   providerID: varchar('provider_id', {length: 255}),
   paidAt: timestamp('paid_at', {withTimezone: true}),
-  createdAt: timestamp('created_at', {withTimezone: true}).defaultNow(),
+  createdAt: timestamp('created_at', {
+    precision: 6,
+    withTimezone: true,
+  }).defaultNow(),
   updatedAt: timestamp('updated_at', {withTimezone: true})
     .defaultNow()
     .$onUpdate(() => new Date()),
